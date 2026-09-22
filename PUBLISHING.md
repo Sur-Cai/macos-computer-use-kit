@@ -127,11 +127,14 @@ intend to ship.
 
 | Artifact | Published | Notes |
 | --- | --- | --- |
-| `macos-computer-use-kit` | PyPI `0.2.1` | `pip install macos-computer-use-kit` |
-| `pi-macos-computer-use` | npm `0.2.1` | listed on pi.dev/packages |
-| `dsh-macos-computer-use` | npm `0.2.1` | awesome-dsh-plugin PR pending |
+| `macos-computer-use-kit` | PyPI `0.2.2` | `pip install macos-computer-use-kit` |
+| `pi-macos-computer-use` | npm `0.2.2` | listed on pi.dev/packages |
+| `dsh-macos-computer-use` | npm `0.2.2` | 6 tools; awesome-dsh-plugin PR pending |
 
-Known follow-ups: the PyPI `Programming Language :: Python :: 3.14` classifier is
-not set (the wheel installs and runs on 3.14 — verified — but the badge stops at
-3.13 until the next release adds it), and the dsh catalog PR is gated on the
-1-day repository-age rule.
+Discoverability keywords are part of the release, not an edit: npm and PyPI
+metadata is immutable per version, so adding `jev` / `typesafe-ai` /
+`system-one-models` required cutting 0.2.2. Keep that in mind when tweaking
+keywords — batch them with something else.
+
+Known follow-ups: the awesome-dsh-plugin catalog PR is gated on the 1-day
+repository-age rule (earliest 2026-09-23T10:22Z).
