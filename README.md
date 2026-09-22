@@ -229,7 +229,14 @@ skill/                    agent skill (SKILL.md + Jev reference)
 packages/pi/              pi package (skill + native tools)
 packages/dsh/             DeepSeek Harness plugin bundle
 install.sh                local installer (venv + CLI + skill + Jev key)
+tests/                    unit tests for the safety-relevant logic
 ```
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+conventions (JSON on stdout, stable exit codes, no machine-specific defaults).
+Release steps and catalog-listing criteria live in
+[PUBLISHING.md](PUBLISHING.md); notable changes are in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## 中文说明
 
