@@ -89,12 +89,22 @@ that root-mounts the package. Prefer npm or the tarball for distribution.
 ## Catalog listings
 
 - **pi**: publishing to npm is enough — the gallery at <https://pi.dev/packages>
-  lists packages tagged `pi-package`. Optionally add a `pi.image` or
-  `pi.video` preview to `packages/pi/package.json` for a richer card.
+  lists packages tagged `pi-package`. This is confirmed working: the page for
+  `pi-macos-computer-use` appeared shortly after the npm publish. Optionally add
+  a `pi.image` or `pi.video` preview to `packages/pi/package.json` for a richer
+  card.
 - **dsh**: add the `dsh-plugin` GitHub topic, then open a PR against
-  [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)
-  (their bar: installs with `dsh plugin add`, does what its one-line description
-  says, right category, maintained). There is also
+  [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin).
+  Submissions are **one YAML file per plugin** under `data/plugins/` — never edit
+  the generated READMEs. For this monorepo the file is
+  `data/plugins/Sur-Cai__macos-computer-use-kit--packages-dsh.yml`, with `url`
+  pointing at `.../tree/main/packages/dsh` and `name` written as
+  `Sur-Cai/macos-computer-use-kit#packages/dsh`.
+
+  Their CI enforces a **1-day minimum repository age** (ours was created
+  2026-09-22T10:22Z, so the earliest valid submission is the next day at the same
+  time) and at most 3 entries per PR. Descriptions are checked against the code,
+  so keep numbers and tool names exact. There is also
   [dsh-market](https://github.com/dsh-market/dsh-market) for in-app discovery.
 
 ## Release checklist
