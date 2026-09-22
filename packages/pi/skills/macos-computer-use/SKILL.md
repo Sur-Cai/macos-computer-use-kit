@@ -1,6 +1,7 @@
 ---
 name: macos-computer-use
 description: Fast, AX-first computer use on macOS for any agent that can run a shell command. Use when you need to operate a macOS app (Finder, Chrome, Settings, chat apps, ...) — semantic targeting via the accessibility tree, window-scoped input that does not move the user's cursor, clipboard-safe pasting, action read-back verification, blank-frame detection, and optional Jev semantic guards. Replaces "screenshot -> eyeball coordinates -> click and hope".
+license: MIT
 ---
 
 # Fast computer use on macOS (AX-first)
@@ -10,9 +11,19 @@ The speed of a good computer-use loop does not come from the model. It comes fro
 tree, get each element's semantics (role/title/value) plus exact geometry, then
 act on the element.
 
-This skill assumes the `macos-cu` CLI (this repo) is available. If it is not
-installed yet, either `pip install macos-computer-use-kit` or run the scripts
-from a checkout via `tools/<name>.py`.
+This skill assumes the `macos-cu` CLI is available. It is not installed with
+this package — install it once:
+
+```bash
+pip install macos-computer-use-kit
+```
+
+This pi package also ships an extension that exposes the CLI as native tools
+(`macos_cu_doctor`, `macos_ax_find`, `macos_ax_press`, `macos_input_windows`,
+`macos_input_click`, `macos_input_key`, `macos_paste`, `macos_shot`,
+`macos_jev_guard`), so inside pi you can call those directly instead of
+shelling out. The `macos-cu ...` commands below remain the reference for the
+exact arguments each tool forwards.
 
 ## Core principles
 

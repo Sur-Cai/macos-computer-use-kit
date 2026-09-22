@@ -1,0 +1,61 @@
+{
+  "name": "pi-macos-computer-use",
+  "version": "0.2.0",
+  "description": "AX-first computer use on macOS for pi: accessibility-tree targeting instead of screenshot coordinate guessing, window-scoped input that never moves the user's cursor, clipboard-safe pasting, action read-back verification, blank-frame detection, and optional Jev semantic guards.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "macos",
+    "computer-use",
+    "computer-use-agent",
+    "accessibility",
+    "accessibility-tree",
+    "automation",
+    "gui-automation",
+    "agent-tools"
+  ],
+  "homepage": "https://github.com/Sur-Cai/macos-computer-use-kit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sur-Cai/macos-computer-use-kit.git",
+    "directory": "packages/pi"
+  },
+  "bugs": {
+    "url": "https://github.com/Sur-Cai/macos-computer-use-kit/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "files": [
+    "extensions",
+    "skills",
+    "LICENSE",
+    "README.md",
+    "tsconfig.json"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.87.0",
+    "@earendil-works/pi-coding-agent": "^0.87.0",
+    "@types/node": "^22.10.0",
+    "typebox": "^1.3.27",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

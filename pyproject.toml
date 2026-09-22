@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "macos-computer-use-kit"
+version = "0.2.0"
+description = "AX-first computer-use toolkit for AI agents on macOS: accessibility-tree targeting, process-scoped input, clipboard-safe paste, action read-back verification, visual feedback, and optional Jev semantic guards."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+keywords = [
+  "computer-use",
+  "macos",
+  "accessibility",
+  "automation",
+  "ai-agent",
+  "agent-tools",
+  "opencode",
+  "pi-package",
+  "dsh-plugin",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: MacOS X :: Cocoa",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: User Interfaces",
+]
+dependencies = [
+  "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
+  "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+  "pyobjc-framework-ApplicationServices>=10.0; sys_platform == 'darwin'",
+  "pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/Sur-Cai/macos-computer-use-kit"
+Repository = "https://github.com/Sur-Cai/macos-computer-use-kit"
+Issues = "https://github.com/Sur-Cai/macos-computer-use-kit/issues"
+
+[project.scripts]
+macos-cu = "macos_computer_use.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/macos_computer_use"]

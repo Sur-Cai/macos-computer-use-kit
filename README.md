@@ -1,96 +1,250 @@
 # macos-computer-use-kit
 
-给 AI agent 用的 **macOS 电脑控制工具箱**：语义定位（AX）、进程级输入、剪贴板安全、
-动作回读校验、视觉反馈，以及可选的 Jev（TypeSafe System One）语义护栏。
+**AX-first computer use for AI agents on macOS.** Instead of screenshot → eyeball
+coordinates → click and hope, read the accessibility tree, get each element's
+semantics and exact geometry, act on it, then verify the action actually changed
+the UI.
 
-> A small, composable toolkit for driving macOS UIs from an AI agent: accessibility-tree
-> targeting, process-scoped input, clipboard-safe pasting, action read-back verification,
-> visual feedback, and optional LLM-free semantic guards via Jev.
+A small, composable toolkit: accessibility-tree targeting, process- and
+window-scoped input, clipboard-safe pasting, action read-back verification,
+blank-frame detection, visual feedback, and optional Jev (TypeSafe System One)
+semantic guards.
 
-这些工具是从三个成熟实现里提炼出来的做法，而不是从零发明：
+Works with any agent that can run a shell command, and ships first-class
+packages for [pi](#pi) and [DeepSeek Harness](#deepseek-harness-dsh).
 
-| 灵感来源 | 吸收的机制 |
+## Why
+
+These mechanisms were distilled from three mature implementations rather than
+invented from scratch:
+
+| Source | Mechanism absorbed |
 | --- | --- |
-| Codex CUA（`@oai/cua` / Sky 服务） | AX 状态 + element index、`setValue`、批量动作、持久化会话 |
-| ZCode（`ZCode Computer Use`） | `*_to_window` 窗口级输入、`target_changed` 校验、剪贴板安全粘贴管线、`screenshot_blank` |
-| Grok Bot（`CUGrokBotService`） | 带稳定 element_id 的快照 + 文本预算 + 下钻、动作后回读、失败时降级到坐标 |
+| Codex CUA (`@oai/cua` / Sky service) | AX state + element index, `setValue`, batch actions, event delivery via `CGEventPostToPid` |
+| ZCode Computer Use | `*_to_window` window-scoped input, `target_changed` validation, clipboard-safe paste pipeline, `screenshot_blank` |
+| Grok Bot (`CUGrokBotService`) | snapshots with stable element ids + text budget + drill-down, action read-back, coordinate fallback on failure |
 
-## 组件
+## Install
 
-| 文件 | 作用 | 关键能力 |
-| --- | --- | --- |
-| `tools/ax_tool.py` | 读取 macOS 辅助功能树 | `tree` / `find` / `snapshot --budget`（稳定 id + 省 token）/ `resolve` / `press` / `setvalue`（**带回读校验**） |
-| `tools/assist.py` | 进程级输入（物理光标不动） | `windows` / `click|key|scroll --window-id N --x <窗口内相对坐标>` / `--expect` 目标签名校验 / `--show` 视觉反馈 |
-| `tools/smart_paste.py` | 剪贴板安全粘贴 | 保存并恢复用户剪贴板、检测被他人抢占、返回 `action_sent` |
-| `tools/shot.py` | 截图与**空白帧检测** | `capture --app X`（窗口级）/ `check --file` → `ok / all_black / all_white / uniform` |
-| `tools/overlay.py` | 光圈 + 标签 overlay | 点击穿透、层级最高、自动淡出 |
-| `tools/jev_select.py` | 从候选元素里语义选一个 | 带 `none` 逃生口 + 置信度门限 |
-| `tools/guard.py` | **动作前语义护栏** | 一次调用 fan-out 4 个判断（目标/内容/阻塞/下一步），由代码按阈值决策 |
-| `skill/` | opencode skill 文档 | 完整流程、避坑清单、Jev 最佳实践沉淀 |
-
-## 快速开始
+macOS 12+, Python 3.10+.
 
 ```bash
-# 1) 依赖：macOS 12+，Python 3.10+（pyobjc / Pillow / mss）
-pip install pyobjc-framework-Quartz pyobjc-framework-AppKit pyobjc-framework-ApplicationServices pillow
+pip install macos-computer-use-kit        # or: pipx install macos-computer-use-kit
+macos-cu doctor                           # check permissions, displays, dependencies
 
-# 2) 授权：系统设置 → 隐私与安全性 → 辅助功能 / 屏幕录制（给运行这些脚本的进程）
+# from a checkout (editable install + agent skill)
+git clone https://github.com/Sur-Cai/macos-computer-use-kit && cd macos-computer-use-kit
+./install.sh
+```
 
-# 3) 用法示例
-V=python3
-A=tools/ax_tool.py
+Grant both permissions to the process that runs the agent (your terminal, or the
+agent app). `macos-cu doctor` reports what is missing and where to enable it:
 
-# 语义定位：拿元素精确坐标（不靠截图目测）
-$V $A find --app com.apple.finder --role AXButton --title 大小
+- **Accessibility** — AX reads, `AXPress`, `setValue`, posted events
+- **Screen Recording** — `shot` (without it every capture is black)
 
-# 带稳定 id 的快照（预算裁剪，省 token）
-$V $A snapshot --app com.apple.finder --budget 1200
+## Quickstart
 
-# AX 原生动作 + 回读校验（原生控件首选）
-$V $A press --app com.apple.finder --role AXButton --title 大小
+```bash
+# semantic targeting: exact geometry, zero visual reasoning
+macos-cu ax find --app com.apple.finder --role AXButton --title Size
+macos-cu ax tree --app com.apple.finder --depth 16 --max 200
+
+# token-efficient snapshot with stable ids, trimmed to a budget
+macos-cu ax snapshot --app com.apple.finder --budget 1200 --file /tmp/ax.json
+macos-cu ax resolve  --file /tmp/ax.json --id 0.1.0.6.0.0.0.0.5.8
+
+# native AX action + read-back verification
+macos-cu ax press --app com.apple.finder --role AXButton --title Size
 # {"verified":true,"state_changed":true,...}
 
-# 窗口级输入（相对坐标 + 目标签名校验 + 视觉反馈）
-$V tools/assist.py windows --app Finder
-$V tools/assist.py click --window-id 12345 --x 171 --y 28 --show
+# window-scoped input: the user's cursor never moves, target is validated
+macos-cu input windows --app "Google Chrome"
+macos-cu input click --window-id 12345 --x 171 --y 28 --show
+macos-cu input click --window-id 12345 --x 171 --y 28 --expect "37040:12345:642:244:824:640"
+# mismatch -> {"ok":false,"reason":"target_changed"} and exit code 5
 
-# 剪贴板安全粘贴（保存/恢复用户剪贴板，检测抢占）
-$V tools/smart_paste.py --app com.google.Chrome --text "hello" --mode pid
+# clipboard-safe paste (saves and restores the user's clipboard)
+macos-cu paste --app com.google.Chrome --text "你好" --mode pid
 
-# 截图空白检测
-$V tools/shot.py capture --app Finder --out /tmp/f.png
+# screenshot with blank-frame detection
+macos-cu shot capture --app "Google Chrome" --out /tmp/shot.png
+macos-cu shot check --file /tmp/shot.png
 ```
 
-## 设计原则
+## CLI
 
-1. **AX-first**：能用辅助功能树定位就不要截图目测。语义 + 精确几何，零视觉推理。
-2. **动作发出 ≠ 动作生效**：`action_sent`（是否发出）与 `verified`（是否生效）分开报告。
-   回读依据是"窗口可见文本指纹 + 焦点元素"的前后对比；未通过时给出降级建议。
-3. **剪贴板是共享资源**：写入前保存、完成后恢复；检测"被用户抢占"与"目标未消费"。
-4. **目标必须显式且可校验**：窗口级输入带签名 `pid:wid:x:y:w:h`，不匹配即 `target_changed`。
-5. **不确定性交给小模型，控制权留给代码**：Jev 只做窄判断（身份/状态/效果/路由），
-   阈值与副作用永远在代码里；成本阶梯 `确定性代码(µs) < Jev(~1s) < 视觉推理(秒~几十秒)`。
-6. **让人看得见**：动作点画光圈，避免"黑盒操作"。
+One binary, JSON output, stable exit codes (`0` ok, `2` usage/permission,
+`3` not found, `4` capture failed, `5` target changed).
 
-## Jev 集成（可选）
+| Group | Commands |
+| --- | --- |
+| `macos-cu ax` | `tree`, `find`, `click-info`, `snapshot`, `resolve`, `press`, `setvalue` |
+| `macos-cu input` | `windows`, `cursor`, `pid`, `click`, `key`, `scroll`, `move` |
+| `macos-cu paste` | clipboard-safe paste (`--mode pid\|hid`, `--keep`) |
+| `macos-cu shot` | `capture`, `check`, `windows` |
+| `macos-cu overlay` | `show`, `clear` |
+| `macos-cu jev` | `guard`, `select` (optional, JSON on stdin) |
+| `macos-cu doctor` | permissions, displays, dependencies, Jev setup |
 
-需要 `TYPESAFE_API_KEY`（环境变量或 `~/.config/typesafe/api_key`）。不需要 Jev 时其余工具完全可用。
+### Coordinate spaces
+
+| Space | Source | Used by |
+| --- | --- | --- |
+| `screen[x, y]` | AX/CoreGraphics points, origin at the primary display's top-left | `input --x --y`, `overlay` |
+| window-relative | element point − window origin | `input click --window-id N --x --y` |
+| `shot[x, y]` | `center_screen × --shot-scale` | only for harnesses whose screenshots are scaled differently from screen points; there is deliberately no default |
+
+Secondary displays placed left of or above the primary produce **negative**
+coordinates. That is normal. `macos-cu doctor` prints the layout.
+
+## Agent integrations
+
+| Harness | What you get | Install |
+| --- | --- | --- |
+| any agent with a shell | the full CLI | `pip install macos-computer-use-kit` |
+| [opencode](https://opencode.ai) | skill `macos-computer-use` (auto-discovered) | `./install.sh` |
+| [pi](https://pi.dev) | skill + 9 native tools | `pi install npm:pi-macos-computer-use` |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | plugin bundle, 5 tools | `dsh plugin --profile <name> add dsh-macos-computer-use` |
+
+<a name="pi"></a>
+### pi package
+
+`packages/pi` — `pi-macos-computer-use` (npm, `pi-package` keyword). Registers
+`macos_cu_doctor`, `macos_ax_find`, `macos_ax_press`, `macos_input_windows`,
+`macos_input_click`, `macos_input_key`, `macos_paste`, `macos_shot`,
+`macos_jev_guard`. Every tool shells out with an argv array (`shell: false`), so
+model-supplied text can never reach a shell.
 
 ```bash
-# 动作前护栏：发消息/提交表单前跑一次
-echo '{"task":"把分析发给联系人A",
-       "expected":{"recipient":"联系人A","message":"…"},
-       "observed":{"chat_title":"另一个会话","input_text":"…"}}' | python3 tools/guard.py
-# → {"answers":{"right_target":0.06,"input_ok":0.93,"blocker":"wrong_target",...},
-#    "decision":"switch_target"}
+pi install npm:pi-macos-computer-use
+pi -e ./packages/pi        # try it for one run without installing
 ```
 
-## 已知局限
+App launchers do not inherit your interactive shell's `PATH`. If the CLI is
+installed but pi cannot find it, set `MACOS_CU_BIN=/abs/path/to/macos-cu` and
+restart pi (the dsh plugin honours the same variable).
 
-- 仅 macOS（AX / CGEvent / ScreenCaptureKit 都是 macOS API）
-- 自绘 UI 的 AX 支持有限：例如微信侧栏按钮不接受 `AXPress`（工具会正确判为未验证并建议坐标点击）
-- 坐标换算依赖显示器分辨率（`ax_tool.py` 的 `--shot-scale`，默认 `0.9333 = 1372/1470`，换显示器需重算）
-- 进程级键盘事件（`CGEventPostToPid`）并非所有 app 都接受：浏览器类通常可以，微信需要前台
+<a name="deepseek-harness-dsh"></a>
+### DeepSeek Harness plugin
+
+`packages/dsh` — `dsh-macos-computer-use`, a Cordis bundle
+(`dsh.bundle.patch` → `cordis.patch.yml`). Registers `macos_cu_doctor`,
+`macos_ax_find`, `macos_ax_press`, `macos_input_click`, `macos_shot`.
+
+```bash
+dsh plugin --profile demo add dsh-macos-computer-use
+dsh --profile demo --dump-config    # verify the layer before booting
+```
+
+It deliberately does **not** claim the exclusive `ctx.computerUse` provider slot:
+it adds tools rather than owning desktop operations, so it cannot block the
+in-box Cua Driver provider. See `packages/dsh/README.md`.
+
+### opencode skill
+
+`./install.sh` installs `skill/SKILL.md` to
+`~/.config/opencode/skills/macos-computer-use/`, where opencode discovers it
+automatically.
+
+## The four capabilities that matter
+
+**1. Window-scoped input with target validation.** Events are posted straight to
+the target process (`CGEventPostToPid`), so the physical cursor never moves and
+the user can keep working. `--expect pid:wid:x:y:w:h` refuses to act when the
+window moved or lost focus since you looked at it.
+
+**2. Native AX actions with read-back verification.** `press`/`setvalue` compare
+the window's visible-text fingerprint and focused element before and after, and
+report `verified` separately from `action_sent`. When AX cannot act (custom-drawn
+UI), the result carries a `hint` telling you to fall back to a coordinate click
+or a clipboard paste — you find out from evidence, not from guessing.
+
+**3. Clipboard safety.** The user's clipboard is saved before and restored after.
+Takeover and non-consumption are reported explicitly, so pasting CJK text never
+silently destroys what the user had copied.
+
+**4. Never reason on a blank frame.** `shot` classifies captures as
+`ok` / `all_black` / `all_white` / `uniform` with a hint, so a missing permission
+or an occluded window is reported instead of hallucinated UI state.
+
+## Design principles
+
+1. **AX-first.** Semantic + exact geometry beats visual inference. Screenshots
+   verify; they do not target.
+2. **`action_sent` ≠ `verified`.** Keep "we emitted the event" and "the UI
+   changed" as separate facts.
+3. **The clipboard is a shared resource.** Save, detect interference, restore.
+4. **Targets must be explicit and checkable.** Window input carries a signature;
+   a mismatch is `target_changed`, not a misclick.
+5. **Small models judge, code decides.** Jev returns calibrated probabilities;
+   thresholds and side effects stay in code. Cost ladder: deterministic code
+   (µs) < Jev (~1 s) < visual reasoning (seconds to tens of seconds).
+6. **Make it visible.** Action points draw a ring, so the user is never watching
+   a black box.
+
+## Jev semantic guards (optional)
+
+The only part that needs a key. Everything else works without it.
+
+```bash
+echo '{"task":"send the report to Alice",
+       "expected":{"recipient":"Alice","message":"Q3 numbers"},
+       "observed":{"chat_title":"Bob","input_text":"Q3 numbers"}}' | macos-cu jev guard
+# {"answers":{"right_target":0.02,"input_ok":0.98,"blocker":"wrong_target"},
+#  "decision":"switch_target"}
+```
+
+One request fans out independent judgments and **code** applies the policy:
+proceed only when `blocker=none` and both probabilities clear the threshold; the
+model may only suggest the two safe recoveries (`switch_target`, `retype_input`);
+anything else asks the user. `macos-cu jev select` picks one candidate element
+with a `none` escape hatch and a confidence gate.
+
+Key: `TYPESAFE_API_KEY` or `~/.config/typesafe/api_key`
+(<https://console.typesafe.ai/keys>). Pin `TYPESAFE_MODEL` for automation;
+`jev-latest` is the friendly default. Question-design guidance lives in
+[`skill/reference/jev-best-practices.md`](skill/reference/jev-best-practices.md).
+
+## Known limitations
+
+- macOS only (AX, CGEvent, ScreenCaptureKit are macOS APIs).
+- Custom-drawn UIs (some Electron apps, games, chat apps) expose shallow or
+  uncooperative AX trees. Fall back to screenshots **after** read-back fails,
+  not before.
+- Process-targeted key events are accepted by most apps but not all: browsers
+  usually accept background keystrokes; some chat apps require the app to be
+  frontmost for typing and pasting.
+- AX coordinate scale is display-dependent. `center_shot` is opt-in via
+  `--shot-scale` for exactly this reason.
+- The user may be using the machine at the same time. Concurrent automation is
+  risky; one extra verification before an irreversible action is cheap.
+
+## Repository layout
+
+```
+src/macos_computer_use/   the CLI implementation (pip-installable)
+tools/*.py                compatibility shims -> the same modules
+skill/                    agent skill (SKILL.md + Jev reference)
+packages/pi/              pi package (skill + native tools)
+packages/dsh/             DeepSeek Harness plugin bundle
+install.sh                local installer (venv + CLI + skill + Jev key)
+```
+
+## 中文说明
+
+给 AI agent 用的 macOS 电脑控制工具箱：**AX 语义定位**（不靠截图目测坐标）、
+进程/窗口级输入（物理光标不动）、剪贴板安全粘贴、动作回读校验、空白帧检测、
+可视反馈，以及可选的 Jev 语义护栏。
+
+```bash
+pip install macos-computer-use-kit
+macos-cu doctor          # 检查辅助功能 / 屏幕录制权限、显示器、依赖、Jev
+```
+
+Agent 集成：`./install.sh`（opencode skill）、`pi install npm:pi-macos-computer-use`（pi）、
+`dsh plugin --profile <名> add dsh-macos-computer-use`（DeepSeek Harness）。
+完整流程与避坑见 [`skill/SKILL.md`](skill/SKILL.md)。
 
 ## License
 

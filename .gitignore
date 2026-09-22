@@ -1,5 +1,22 @@
+# Python
 __pycache__/
 *.pyc
-.DS_Store
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Built dsh bundle output (rebuilt by `prepare` on install/publish)
+packages/*/lib/
+
+# Runtime artifacts
 .runtime/
 *.png
+
+# macOS
+.DS_Store
