@@ -148,6 +148,44 @@ const shot = defineTool({
   },
 })
 
+const jevGuard = defineTool({
+  name: 'macos_jev_guard',
+  description: `Optional Jev (TypeSafe System One) semantic guard for the moment before an irreversible action. \`macos-cu jev guard\` fans one request out into calibrated judgments about expected versus observed state (right_target, input_ok, blocker, next_action) plus a decision, and \`macos-cu jev select\` picks one candidate element id with a confidence gate and a 'none' escape hatch. Use it only for semantic identity/state/effect questions that ordinary code cannot decide — never for blank-frame detection or signature comparison. Requires TYPESAFE_API_KEY or ~/.config/typesafe/api_key; the rest of this plugin works without it. The JSON request is sent on stdin.`,
+  parameters: {
+    command: {
+      type: 'string',
+      required: true,
+      enum: ['guard', 'select'],
+      description: 'guard = pre-action judgment; select = pick an element id from candidates.',
+    },
+    payload: {
+      type: 'string',
+      required: true,
+      description:
+        'JSON request for the CLI stdin. guard: {"task":...,"expected":{...},"observed":{...}}. select: {"goal":...,"candidates":[{"id":...,"text":...}]}.',
+    },
+  },
+  output: OUTPUT,
+  async execute(args, exec) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(args.payload)
+    } catch (error) {
+      throw new Error(`macos_jev_guard 'payload' is not valid JSON: ${(error as Error).message}`)
+    }
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error("macos_jev_guard 'payload' must be a JSON object.")
+    }
+    if (args.command === 'guard' && !(parsed as { task?: unknown }).task) {
+      throw new Error("macos_jev_guard command='guard' needs a 'task' field in the payload.")
+    }
+    if (args.command === 'select' && !Array.isArray((parsed as { candidates?: unknown }).candidates)) {
+      throw new Error("macos_jev_guard command='select' needs a 'candidates' array in the payload.")
+    }
+    return runMacosCu(['jev', args.command], exec.signal, JSON.stringify(parsed))
+  },
+})
+
 /** Register the macos-cu bridge tools. Tool registrations auto-dispose on unload. */
 export function apply(ctx: Context): void {
   ctx.tools.register(doctor)
@@ -155,4 +193,5 @@ export function apply(ctx: Context): void {
   ctx.tools.register(axPress)
   ctx.tools.register(inputClick)
   ctx.tools.register(shot)
+  ctx.tools.register(jevGuard)
 }

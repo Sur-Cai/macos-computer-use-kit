@@ -1,7 +1,7 @@
 {
   "name": "dsh-macos-computer-use",
-  "version": "0.2.1",
-  "description": "AX-first computer use on macOS for DeepSeek Harness: accessibility-tree targeting instead of screenshot coordinate guessing, window-scoped input, action read-back verification, and blank-frame-checked screenshots, bridged to the macos-cu CLI.",
+  "version": "0.2.2",
+  "description": "AX-first computer use on macOS for DeepSeek Harness: accessibility-tree targeting instead of screenshot coordinate guessing, window-scoped input, action read-back verification, blank-frame-checked screenshots, and optional Jev (TypeSafe System One) semantic guards before irreversible actions \u2014 bridged to the macos-cu CLI.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -31,7 +31,10 @@
     "accessibility-tree",
     "automation",
     "gui-automation",
-    "agent-tools"
+    "agent-tools",
+    "jev",
+    "typesafe-ai",
+    "system-one-models"
   ],
   "homepage": "https://github.com/Sur-Cai/macos-computer-use-kit#readme",
   "repository": {

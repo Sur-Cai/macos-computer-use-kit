@@ -17,6 +17,14 @@ window-scoped input, clipboard-safe pasting, action read-back verification,
 blank-frame detection, visual feedback, and optional Jev (TypeSafe System One)
 semantic guards.
 
+**Jev is the semantic guard layer.** A small model — no reasoning tokens, no
+prose — returns calibrated judgments right before an irreversible action: *is
+this still the intended recipient? does the field hold the intended text? what,
+if anything, blocks the action?* The code, not the model, decides whether to
+proceed, and the model may only ever suggest the two recoveries that cannot send
+or submit anything. Probabilities in, decisions out. See
+[Jev semantic guards](#jev-semantic-guards-optional).
+
 Works with any agent that can run a shell command, and ships first-class
 packages for [pi](#pi) and [DeepSeek Harness](#deepseek-harness-dsh).
 
@@ -121,7 +129,7 @@ coordinates. That is normal. `macos-cu doctor` prints the layout.
 | any agent with a shell | the full CLI ([PyPI](https://pypi.org/project/macos-computer-use-kit/)) | `pip install macos-computer-use-kit` |
 | [opencode](https://opencode.ai) | skill `macos-computer-use` (auto-discovered) | `./install.sh` |
 | [pi](https://pi.dev) | skill + 9 native tools ([npm](https://www.npmjs.com/package/pi-macos-computer-use), [catalog](https://pi.dev/packages/pi-macos-computer-use)) | `pi install npm:pi-macos-computer-use` |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | plugin bundle, 5 tools ([npm](https://www.npmjs.com/package/dsh-macos-computer-use)) | `dsh plugin --profile <name> add dsh-macos-computer-use` |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | plugin bundle, 6 tools ([npm](https://www.npmjs.com/package/dsh-macos-computer-use)) | `dsh plugin --profile <name> add dsh-macos-computer-use` |
 
 Every integration is a thin bridge over the same CLI, so install the CLI first
 (`pip install macos-computer-use-kit`). The three published artifacts — the PyPI
@@ -154,7 +162,8 @@ restart pi (the dsh plugin honours the same variable).
 [`dsh-macos-computer-use`](https://www.npmjs.com/package/dsh-macos-computer-use)
 on npm, sources in `packages/dsh` — a Cordis bundle
 (`dsh.bundle.patch` → `cordis.patch.yml`). Registers `macos_cu_doctor`,
-`macos_ax_find`, `macos_ax_press`, `macos_input_click`, `macos_shot`.
+`macos_ax_find`, `macos_ax_press`, `macos_input_click`, `macos_shot`,
+`macos_jev_guard` (the same optional Jev guard the pi package exposes).
 
 ```bash
 pip install macos-computer-use-kit                      # the CLI the tools call

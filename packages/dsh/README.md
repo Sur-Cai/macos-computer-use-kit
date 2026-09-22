@@ -4,7 +4,7 @@ DeepSeek Harness (dsh) bundle bridging dsh agents to the
 [macos-computer-use-kit](https://github.com/Sur-Cai/macos-computer-use-kit)
 `macos-cu` CLI: AX-first computer use on macOS.
 
-The plugin registers five focused tools that shell out to `macos-cu` with an
+The plugin registers six focused tools that shell out to `macos-cu` with an
 argument array (never shell-string concatenation) and return the CLI's JSON
 output:
 
@@ -15,6 +15,7 @@ output:
 | `macos_ax_press` | `macos-cu ax press\|setvalue` | Native AX action with read-back verification |
 | `macos_input_click` | `macos-cu input click` | Window-scoped click that never moves the user's cursor |
 | `macos_shot` | `macos-cu shot capture\|check\|windows` | Blank-frame-checked screenshots for verification only |
+| `macos_jev_guard` | `macos-cu jev guard\|select` | Optional Jev semantic guard before an irreversible action (needs `TYPESAFE_API_KEY`) |
 
 The AX-first intent is baked into every tool description: locate elements via
 `macos_ax_find` and use the returned geometry — use instead of guessing

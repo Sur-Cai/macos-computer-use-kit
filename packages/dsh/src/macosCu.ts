@@ -35,13 +35,16 @@ export function binary(): string {
  * Run the CLI with an argument array (never a shell string) and return the
  * outcome. Missing-binary (ENOENT) resolves to an actionable install message
  * instead of throwing, so the model sees what to do next.
+ *
+ * `stdin` is written and the stream closed immediately: the `jev` subcommand
+ * reads a JSON payload from stdin and would otherwise wait forever.
  */
-export async function runMacosCu(argv: string[], signal: AbortSignal): Promise<string> {
+export async function runMacosCu(argv: string[], signal: AbortSignal, stdin?: string): Promise<string> {
   if (signal.aborted) throw new Error('macos-cu call aborted before spawn')
   const bin = binary()
   const outcome = await new Promise<{ code: number; stdout: string; stderr: string; spawnError?: NodeJS.ErrnoException }>(
     (resolve) => {
-      execFile(
+      const child = execFile(
         bin,
         argv,
         { timeout: 55_000, signal, maxBuffer: 8 * 1024 * 1024, windowsHide: true },
@@ -57,6 +60,7 @@ export async function runMacosCu(argv: string[], signal: AbortSignal): Promise<s
           resolve({ code, stdout: String(stdout), stderr: String(stderr) })
         },
       )
+      child.stdin?.end(stdin ?? '')
     },
   )
   if (outcome.spawnError !== undefined) return MISSING_BINARY_MESSAGE

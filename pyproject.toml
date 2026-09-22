@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "macos-computer-use-kit"
-version = "0.2.1"
+version = "0.2.2"
 description = "AX-first computer-use toolkit for AI agents on macOS: accessibility-tree targeting, process-scoped input, clipboard-safe paste, action read-back verification, visual feedback, and optional Jev semantic guards."
 license = "MIT"
 license-files = ["LICENSE"]
@@ -20,6 +20,10 @@ keywords = [
   "opencode",
   "pi-package",
   "dsh-plugin",
+  "jev",
+  "typesafe-ai",
+  "system-one",
+  "llm-guardrails",
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -32,6 +36,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: User Interfaces",
 ]
 dependencies = [

@@ -3,6 +3,22 @@
 All notable changes to this project. The CLI, the pi package, and the dsh bundle
 share a version number.
 
+## 0.2.2
+
+Discoverability and parity for the optional Jev (TypeSafe System One) guards.
+
+- **The dsh bundle now exposes `macos_jev_guard`** — the same optional semantic
+  guard the pi package already had — so both integrations carry the capability
+  they advertise (6 tools instead of 5). The bridge gained stdin support, which
+  is how `macos-cu jev` receives its JSON request.
+- npm keywords gain `jev`, `typesafe-ai`, `system-one-models`; PyPI keywords gain
+  `jev`, `typesafe-ai`, `system-one`, `llm-guardrails`. Keywords are immutable
+  per version, which is why this needed a release rather than an edit.
+- Declare the `Programming Language :: Python :: 3.14` classifier. The wheel has
+  installed and run on 3.14 since 0.2.0; only the metadata was behind.
+
+No behaviour changes outside the new tool.
+
 ## 0.2.1
 
 - Publish the Python package metadata with an SPDX license expression
