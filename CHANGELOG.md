@@ -3,6 +3,12 @@
 All notable changes to this project. The CLI, the pi package, and the dsh bundle
 share a version number.
 
+## 0.2.1
+
+- Publish the Python package metadata with an SPDX license expression
+  (`license = "MIT"` + `license-files`, PEP 639) instead of embedding the full
+  MIT text in the metadata `License` field. No code or behaviour changes.
+
 ## 0.2.0
 
 First release meant for use outside the machine it was built on.

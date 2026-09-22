@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "macos-computer-use-kit"
-version = "0.2.0"
+version = "0.2.1"
 description = "AX-first computer-use toolkit for AI agents on macOS: accessibility-tree targeting, process-scoped input, clipboard-safe paste, action read-back verification, visual feedback, and optional Jev semantic guards."
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
-license = { file = "LICENSE" }
 requires-python = ">=3.10"
 keywords = [
   "computer-use",

@@ -1,6 +1,6 @@
 {
   "name": "pi-macos-computer-use",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AX-first computer use on macOS for pi: accessibility-tree targeting instead of screenshot coordinate guessing, window-scoped input that never moves the user's cursor, clipboard-safe pasting, action read-back verification, blank-frame detection, and optional Jev semantic guards.",
   "type": "module",
   "license": "MIT",

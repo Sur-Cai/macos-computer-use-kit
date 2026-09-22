@@ -1,6 +1,6 @@
 {
   "name": "dsh-macos-computer-use",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AX-first computer use on macOS for DeepSeek Harness: accessibility-tree targeting instead of screenshot coordinate guessing, window-scoped input, action read-back verification, and blank-frame-checked screenshots, bridged to the macos-cu CLI.",
   "type": "module",
   "main": "lib/index.js",

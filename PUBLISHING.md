@@ -1,7 +1,8 @@
 # Publishing this toolkit
 
 Three artifacts can be published from this repository, all versioned in lockstep
-with the CLI (`0.2.0` today):
+with the CLI (bump `pyproject.toml`, `packages/pi/package.json`, and
+`packages/dsh/package.json` together):
 
 | Artifact | Registry | Command |
 | --- | --- | --- |
@@ -76,7 +77,7 @@ Users install with:
 
 ```bash
 dsh plugin --profile <name> add dsh-macos-computer-use        # from npm (recommended)
-dsh plugin --profile <name> add ./dsh-macos-computer-use-0.2.0.tgz   # from a packed tarball
+dsh plugin --profile <name> add ./dsh-macos-computer-use-<version>.tgz   # from a packed tarball
 ```
 
 The npm and tarball forms ship the prebuilt `lib/`, so no build permission is
