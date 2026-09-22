@@ -1,5 +1,12 @@
 # macos-computer-use-kit
 
+[![PyPI](https://img.shields.io/pypi/v/macos-computer-use-kit)](https://pypi.org/project/macos-computer-use-kit/)
+[![Python versions](https://img.shields.io/pypi/pyversions/macos-computer-use-kit)](https://pypi.org/project/macos-computer-use-kit/)
+[![pi package](https://img.shields.io/npm/v/pi-macos-computer-use)](https://www.npmjs.com/package/pi-macos-computer-use)
+[![dsh plugin](https://img.shields.io/npm/v/dsh-macos-computer-use)](https://www.npmjs.com/package/dsh-macos-computer-use)
+[![CI](https://github.com/Sur-Cai/macos-computer-use-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Sur-Cai/macos-computer-use-kit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **AX-first computer use for AI agents on macOS.** Instead of screenshot → eyeball
 coordinates → click and hope, read the accessibility tree, get each element's
 semantics and exact geometry, act on it, then verify the action actually changed
@@ -29,10 +36,19 @@ invented from scratch:
 macOS 12+, Python 3.10+.
 
 ```bash
-pip install macos-computer-use-kit        # or: pipx install macos-computer-use-kit
-macos-cu doctor                           # check permissions, displays, dependencies
+# 1) the CLI — every integration below drives this, and it works on its own
+pip install macos-computer-use-kit       # or: pipx install macos-computer-use-kit
+macos-cu doctor                          # permissions, displays, dependencies
 
-# from a checkout (editable install + agent skill)
+# 2) your agent integration (optional — pick one)
+pi  install npm:pi-macos-computer-use                       # pi
+dsh plugin --profile <name> add dsh-macos-computer-use      # DeepSeek Harness
+```
+
+From a checkout — this is also the opencode integration (editable CLI, the
+`macos-computer-use` skill, a `macos-cu` launcher, and the optional Jev key):
+
+```bash
 git clone https://github.com/Sur-Cai/macos-computer-use-kit && cd macos-computer-use-kit
 ./install.sh
 ```
@@ -102,23 +118,30 @@ coordinates. That is normal. `macos-cu doctor` prints the layout.
 
 | Harness | What you get | Install |
 | --- | --- | --- |
-| any agent with a shell | the full CLI | `pip install macos-computer-use-kit` |
+| any agent with a shell | the full CLI ([PyPI](https://pypi.org/project/macos-computer-use-kit/)) | `pip install macos-computer-use-kit` |
 | [opencode](https://opencode.ai) | skill `macos-computer-use` (auto-discovered) | `./install.sh` |
-| [pi](https://pi.dev) | skill + 9 native tools | `pi install npm:pi-macos-computer-use` |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | plugin bundle, 5 tools | `dsh plugin --profile <name> add dsh-macos-computer-use` |
+| [pi](https://pi.dev) | skill + 9 native tools ([npm](https://www.npmjs.com/package/pi-macos-computer-use), [catalog](https://pi.dev/packages/pi-macos-computer-use)) | `pi install npm:pi-macos-computer-use` |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | plugin bundle, 5 tools ([npm](https://www.npmjs.com/package/dsh-macos-computer-use)) | `dsh plugin --profile <name> add dsh-macos-computer-use` |
+
+Every integration is a thin bridge over the same CLI, so install the CLI first
+(`pip install macos-computer-use-kit`). The three published artifacts — the PyPI
+CLI, the pi package, and the dsh bundle — are versioned and released together;
+the badges at the top of this file show the current release.
 
 <a name="pi"></a>
 ### pi package
 
-`packages/pi` — `pi-macos-computer-use` (npm, `pi-package` keyword). Registers
+[`pi-macos-computer-use`](https://www.npmjs.com/package/pi-macos-computer-use) on
+npm (`pi-package` keyword), sources in `packages/pi`. Registers
 `macos_cu_doctor`, `macos_ax_find`, `macos_ax_press`, `macos_input_windows`,
 `macos_input_click`, `macos_input_key`, `macos_paste`, `macos_shot`,
 `macos_jev_guard`. Every tool shells out with an argv array (`shell: false`), so
 model-supplied text can never reach a shell.
 
 ```bash
-pi install npm:pi-macos-computer-use
-pi -e ./packages/pi        # try it for one run without installing
+pip install macos-computer-use-kit      # the CLI the tools call
+pi install npm:pi-macos-computer-use    # the integration
+pi -e ./packages/pi                     # or try a checkout for one run, without installing
 ```
 
 App launchers do not inherit your interactive shell's `PATH`. If the CLI is
@@ -128,13 +151,15 @@ restart pi (the dsh plugin honours the same variable).
 <a name="deepseek-harness-dsh"></a>
 ### DeepSeek Harness plugin
 
-`packages/dsh` — `dsh-macos-computer-use`, a Cordis bundle
+[`dsh-macos-computer-use`](https://www.npmjs.com/package/dsh-macos-computer-use)
+on npm, sources in `packages/dsh` — a Cordis bundle
 (`dsh.bundle.patch` → `cordis.patch.yml`). Registers `macos_cu_doctor`,
 `macos_ax_find`, `macos_ax_press`, `macos_input_click`, `macos_shot`.
 
 ```bash
-dsh plugin --profile demo add dsh-macos-computer-use
-dsh --profile demo --dump-config    # verify the layer before booting
+pip install macos-computer-use-kit                      # the CLI the tools call
+dsh plugin --profile demo add dsh-macos-computer-use    # the plugin
+dsh --profile demo --dump-config                        # verify the layer before booting
 ```
 
 It deliberately does **not** claim the exclusive `ctx.computerUse` provider slot:
@@ -145,7 +170,7 @@ in-box Cua Driver provider. See `packages/dsh/README.md`.
 
 `./install.sh` installs `skill/SKILL.md` to
 `~/.config/opencode/skills/macos-computer-use/`, where opencode discovers it
-automatically.
+automatically, and puts a `macos-cu` launcher on your `PATH`.
 
 ## The four capabilities that matter
 
@@ -245,13 +270,19 @@ Release steps and catalog-listing criteria live in
 可视反馈，以及可选的 Jev 语义护栏。
 
 ```bash
-pip install macos-computer-use-kit
-macos-cu doctor          # 检查辅助功能 / 屏幕录制权限、显示器、依赖、Jev
+# 1) 命令行本体（所有集成都调它，也可单独使用）
+pip install macos-computer-use-kit       # 或 pipx install macos-computer-use-kit
+macos-cu doctor                          # 检查辅助功能 / 屏幕录制权限、显示器、依赖、Jev
+
+# 2) 选一个 agent 集成
+pi  install npm:pi-macos-computer-use                       # pi
+dsh plugin --profile <名> add dsh-macos-computer-use        # DeepSeek Harness
 ```
 
-Agent 集成：`./install.sh`（opencode skill）、`pi install npm:pi-macos-computer-use`（pi）、
-`dsh plugin --profile <名> add dsh-macos-computer-use`（DeepSeek Harness）。
-完整流程与避坑见 [`skill/SKILL.md`](skill/SKILL.md)。
+opencode 的集成走 checkout：`git clone` 后执行 `./install.sh`，它会装 skill、放一个
+`macos-cu` 启动器，并可写入可选的 Jev key。完整流程与避坑见
+[`skill/SKILL.md`](skill/SKILL.md)，发布与收录流程见
+[`PUBLISHING.md`](PUBLISHING.md)。
 
 ## License
 

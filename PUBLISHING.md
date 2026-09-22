@@ -1,5 +1,9 @@
 # Publishing this toolkit
 
+> Maintainer document, public on purpose: a fork should be able to release under
+> its own npm/PyPI names without reverse-engineering this layout. Nothing here is
+> secret — no credentials, no private infrastructure, no deploy internals.
+
 Three artifacts can be published from this repository, all versioned in lockstep
 with the CLI (bump `pyproject.toml`, `packages/pi/package.json`, and
 `packages/dsh/package.json` together):
@@ -116,5 +120,18 @@ macos-cu doctor                   # permissions still granted after reinstalling
 (cd packages/dsh && npm run typecheck && npm run build)
 ```
 
-Then tag (`git tag v0.2.0 && git push --tags`) and publish the artifacts you
+Then tag (`git tag v<version> && git push --tags`) and publish the artifacts you
 intend to ship.
+
+## Current release state
+
+| Artifact | Published | Notes |
+| --- | --- | --- |
+| `macos-computer-use-kit` | PyPI `0.2.1` | `pip install macos-computer-use-kit` |
+| `pi-macos-computer-use` | npm `0.2.1` | listed on pi.dev/packages |
+| `dsh-macos-computer-use` | npm `0.2.1` | awesome-dsh-plugin PR pending |
+
+Known follow-ups: the PyPI `Programming Language :: Python :: 3.14` classifier is
+not set (the wheel installs and runs on 3.14 — verified — but the badge stops at
+3.13 until the next release adds it), and the dsh catalog PR is gated on the
+1-day repository-age rule.
