@@ -138,10 +138,10 @@ intend to ship.
 
 | Artifact | Published | Notes |
 | --- | --- | --- |
-| `macos-computer-use-kit` | PyPI `0.3.0` | `pip install macos-computer-use-kit` |
-| `pi-macos-computer-use` | npm `0.3.0` | listed on pi.dev/packages |
-| `dsh-macos-computer-use` | npm `0.3.0` | 11 tools; awesome-dsh-plugin PR #5753 |
-| Claude Code plugin | `0.3.0` | served from this repository |
+| `macos-computer-use-kit` | PyPI `0.3.1` | `pip install macos-computer-use-kit` |
+| `pi-macos-computer-use` | npm `0.3.1` | listed on pi.dev/packages |
+| `dsh-macos-computer-use` | npm `0.3.1` | 11 tools; awesome-dsh-plugin PR #5753 |
+| Claude Code plugin | `0.3.1` | served from this repository |
 
 Discoverability keywords are part of the release, not an edit: npm and PyPI
 metadata is immutable per version, so adding `jev` / `typesafe-ai` /
