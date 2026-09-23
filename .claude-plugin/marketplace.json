@@ -10,7 +10,7 @@
     {
       "name": "macos-computer-use",
       "description": "Operate macOS apps from Claude Code: accessibility snapshots with stable refs, background clicks/typing that never move your cursor, menus, windows, apps, set-of-mark screenshots, on-device OCR, and a deterministic safety policy.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": {
         "name": "Sur-Cai"
       },
@@ -18,7 +18,14 @@
       "category": "productivity",
       "homepage": "https://github.com/Sur-Cai/macos-computer-use-kit",
       "license": "MIT",
-      "keywords": ["macos", "computer-use", "mcp", "accessibility", "automation", "desktop"]
+      "keywords": [
+        "macos",
+        "computer-use",
+        "mcp",
+        "accessibility",
+        "automation",
+        "desktop"
+      ]
     }
   ]
 }

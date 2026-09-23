@@ -62,6 +62,52 @@ class TestPolicy:
     def test_ordinary_apps_pass(self):
         assert policy.check_app("com.apple.finder", "Finder", env={}) is None
 
+    def test_bundle_variants_of_sensitive_apps_are_refused(self):
+        # Helper processes and beta builds carry a child bundle id. Matching only
+        # exact ids let a password manager's helper slip through (0.3.1 fix).
+        for bundle, name in [
+            ("com.lastpass.helper", "LastPass Helper"),
+            ("com.lastpass.lastpassmacdesktop.helper", "LastPass Helper"),
+            ("com.dashlane.dashlanephonefinal.helper", "Dashlane Helper"),
+            ("com.nordpass.macos.nordpass.beta", "NordPass Beta"),
+            ("com.agilebits.onepassword7.beta", "1Password Beta"),
+            ("com.bitwarden.desktop.helper", "Bitwarden Helper"),
+            ("com.apple.Passwords.Safari", "Safari Passwords"),
+        ]:
+            r = policy.check_app(bundle, name, env={})
+            assert r is not None and r["reason"] == "sensitive_app", f"{bundle} slipped through"
+
+    def test_eight_character_hints_match_as_substrings(self):
+        # lastpass / dashlane / nordpass are exactly 8 chars; a `> 8` floor
+        # excluded them from substring matching entirely.
+        for name in ("LastPass Helper", "Dashlane Helper", "NordPass Beta", "1Password Helper"):
+            assert policy.is_sensitive("", name), f"{name} not recognised"
+        # The bundle prefix alone is enough, even with an unrelated app name.
+        assert policy.is_sensitive("com.lastpass.helper", "Helper")
+
+    def test_sensitive_matching_stays_narrow_enough(self):
+        # The fix must not turn every app into a sensitive one.
+        for bundle, name in [
+            ("com.apple.finder", "Finder"),
+            ("com.google.Chrome.helper", "Google Chrome Helper"),
+            ("com.apple.Safari", "Safari"),
+            ("com.tinyspeck.slackmacgap", "Slack"),
+            ("com.microsoft.VSCode", "Visual Studio Code"),
+        ]:
+            assert not policy.is_sensitive(bundle, name), f"{bundle} false-positive"
+
+    def test_deny_list_covers_bundle_variants(self):
+        env = {"MACOS_CU_DENY_APPS": "com.example.blocked"}
+        r = policy.check_app("com.example.blocked.helper", "Helper", env=env)
+        assert r is not None and r["reason"] == "app_denied"
+        # An unrelated bundle that merely shares a string prefix is not denied.
+        assert policy.check_app("com.example.blockedout", "Other", env=env) is None
+
+    def test_allow_list_covers_bundle_variants(self):
+        env = {"MACOS_CU_ALLOW_APPS": "com.google.Chrome"}
+        assert policy.check_app("com.google.Chrome.helper", "Chrome Helper", env=env) is None
+        assert policy.check_app("com.apple.Safari", "Safari", env=env)["reason"] == "app_not_allowed"
+
     def test_deny_list(self):
         r = policy.check_app("com.tinyspeck.slackmacgap", "Slack", env={"MACOS_CU_DENY_APPS": "slack, com.foo"})
         assert r and r["reason"] == "app_denied"

@@ -1,7 +1,7 @@
 {
   "name": "pi-macos-computer-use",
-  "version": "0.3.0",
-  "description": "AX-first macOS computer use for pi: accessibility snapshots with stable refs, background input that never moves your cursor, Unicode typing, menus, windows, apps, set-of-mark screenshots, on-device OCR, verified actions, a deterministic safety policy, and optional Jev semantic guards — 16 native tools over the macos-cu CLI.",
+  "version": "0.3.1",
+  "description": "AX-first macOS computer use for pi: accessibility snapshots with stable refs, background input that never moves your cursor, Unicode typing, menus, windows, apps, set-of-mark screenshots, on-device OCR, verified actions, a deterministic safety policy, and optional Jev semantic guards \u2014 16 native tools over the macos-cu CLI.",
   "type": "module",
   "license": "MIT",
   "keywords": [

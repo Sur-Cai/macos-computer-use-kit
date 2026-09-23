@@ -1,6 +1,6 @@
 {
   "name": "dsh-macos-computer-use",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "AX-first macOS computer use for DeepSeek Harness: accessibility snapshots with stable refs, background input, Unicode typing, menus, apps, set-of-mark screenshots, on-device OCR, verified actions, and optional Jev (TypeSafe System One) semantic guards \u2014 11 tools bridged to the macos-cu CLI.",
   "type": "module",
   "main": "lib/index.js",

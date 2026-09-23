@@ -25,14 +25,17 @@ from typing import Any, Mapping
 
 # Apps whose UI holds secrets or system authority. Input is refused by default:
 # an agent has no business typing into a password manager or an auth prompt.
+# These are matched at vendor granularity with a dot boundary (see
+# `_bundle_matches`), so `com.lastpass` covers both the main app and its helper
+# processes; listing only the main app id left helpers unguarded.
 SENSITIVE_BUNDLES: frozenset[str] = frozenset(
     {
-        "com.1password.1password",
-        "com.agilebits.onepassword7",
-        "com.bitwarden.desktop",
-        "com.lastpass.lastpassmacdesktop",
-        "com.dashlane.dashlanephonefinal",
-        "com.nordpass.macos.nordpass",
+        "com.1password",
+        "com.agilebits",
+        "com.bitwarden",
+        "com.lastpass",
+        "com.dashlane",
+        "com.nordpass",
         "com.apple.keychainaccess",
         "com.apple.Passwords",
         "com.apple.SecurityAgent",
@@ -59,9 +62,20 @@ def _csv(value: str | None) -> list[str]:
     return [v.strip().lower() for v in (value or "").split(",") if v.strip()]
 
 
+def _bundle_matches(bundle: str, needle: str) -> bool:
+    """True for the bundle id itself or one of its variants.
+
+    Bundle ids are hierarchical, so ``com.lastpass`` also covers
+    ``com.lastpass.helper`` and ``com.agilebits.onepassword7.beta``. Matching only
+    exact ids let a helper or beta process of a password manager slip past the
+    deny list.
+    """
+    return bundle == needle or bundle.startswith(needle + ".")
+
+
 def _matches(bundle: str, name: str, needles: list[str]) -> bool:
     b, n = bundle.lower(), name.lower()
-    return any(x == b or x == n for x in needles)
+    return any(_bundle_matches(b, x) or x == n for x in needles)
 
 
 def check_app(bundle: str | None, name: str | None, env: Mapping[str, str] | None = None) -> dict[str, Any] | None:
@@ -102,9 +116,12 @@ def check_app(bundle: str | None, name: str | None, env: Mapping[str, str] | Non
 
 def is_sensitive(bundle: str | None, name: str | None) -> bool:
     b, n = (bundle or "").lower(), (name or "").lower()
-    if any(b == s.lower() for s in SENSITIVE_BUNDLES):
+    if any(_bundle_matches(b, s.lower()) for s in SENSITIVE_BUNDLES):
         return True
-    return any(h == n or (h in n and len(h) > 8) for h in SENSITIVE_NAME_HINTS)
+    # Hints are matched as substrings so "LastPass Helper" is caught, but only
+    # for hints long enough to be unambiguous. The floor is 8, not 9: lastpass,
+    # dashlane and nordpass are exactly 8 characters and were being skipped.
+    return any(h == n or (h in n and len(h) >= 8) for h in SENSITIVE_NAME_HINTS)
 
 
 def check_chord(is_system: bool, env: Mapping[str, str] | None = None) -> dict[str, Any] | None:

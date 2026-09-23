@@ -45,7 +45,7 @@ From a tarball (prebuilt, no build permission needed):
 
 ```sh
 npm pack ./packages/dsh
-dsh plugin --profile <name> add ./dsh-macos-computer-use-0.3.0.tgz
+dsh plugin --profile <name> add ./dsh-macos-computer-use-<version>.tgz
 ```
 
 Verify the layer without booting, then boot:

@@ -3,6 +3,25 @@
 All notable changes to this project. The CLI, the pi package, and the dsh bundle
 share a version number.
 
+## 0.3.1
+
+Security fix in the safety policy's app matching.
+
+- **Bundle ids now match at vendor granularity with a dot boundary.** The
+  sensitive-app list and the `MACOS_CU_DENY_APPS` / `MACOS_CU_ALLOW_APPS` lists
+  compared bundle ids for exact equality, so a password manager's helper or beta
+  process (`com.lastpass.helper`, `com.agilebits.onepassword8`,
+  `com.bitwarden.desktop.helper`) was treated as an unrelated app and could
+  receive input. `com.lastpass` now covers `com.lastpass.helper`; a string
+  prefix without a dot boundary (`com.lastpass2`) still does not match.
+- **The name-hint substring rule used `len(hint) > 8`**, which silently excluded
+  `lastpass`, `dashlane` and `nordpass` — exactly 8 characters — from substring
+  matching, so "LastPass Helper" was not recognised by name either. The floor is
+  now inclusive.
+- Ordinary apps are unaffected, and an app whose *name* merely contains a
+  product name is still refused (fail-closed). Both directions are covered by
+  five new tests.
+
 ## 0.3.0
 
 The toolkit becomes an MCP server with first-class Claude Code support, and
