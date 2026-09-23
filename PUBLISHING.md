@@ -131,8 +131,36 @@ Tokens come from the environment for the one command that needs them
 Never write them into the repository, and revoke any token that was pasted into
 a chat or a log.
 
-Then tag (`git tag v<version> && git push --tags`) and publish the artifacts you
-intend to ship.
+Then publish the artifacts and finish the release on GitHub:
+
+```bash
+twine upload dist/*                       # PyPI
+(cd packages/pi  && npm publish)          # npm
+(cd packages/dsh && npm publish)
+
+git tag -a v<version> <release-commit> -m "<version>: ..."
+git push origin v<version>
+gh release create v<version> --title "<version>" --notes-file /tmp/notes.md --verify-tag
+```
+
+The release body is the CHANGELOG section for that version — extract it rather
+than writing it twice:
+
+```bash
+python3 - <<'PY'
+import re, pathlib
+v = "0.3.1"  # <- version
+text = pathlib.Path("CHANGELOG.md").read_text()
+m = re.search(rf"^## {re.escape(v)}\n(.*?)(?=^## )", text, re.S | re.M)
+pathlib.Path("/tmp/notes.md").write_text(f"## {v}\n{m.group(1)}".rstrip() + "\n")
+PY
+```
+
+**Tagging is not releasing.** A version can be live on PyPI and npm while
+`gh release list` still shows the previous one — the registries and the GitHub
+Release are separate steps, and the release is the one that shows up on the repo
+page and in watchers' feeds. Tag the *release commit*, not the follow-up docs
+commit, so the tag and the published artifacts are the same source.
 
 ## Current release state
 

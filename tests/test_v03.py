@@ -301,6 +301,11 @@ class TestVersionLockstep:
             "dsh": json.loads((root / "packages/dsh/package.json").read_text())["version"],
             "claude-plugin": json.loads((root / "plugins/claude-code/.claude-plugin/plugin.json").read_text())["version"],
         }
+        # The marketplace manifest carries its own copy per plugin; it was not
+        # covered here and could drift silently.
+        market = json.loads((root / ".claude-plugin/marketplace.json").read_text())
+        for i, plugin in enumerate(market["plugins"]):
+            versions[f"marketplace[{i}]"] = plugin["version"]
         assert len(set(versions.values())) == 1, versions
 
 
