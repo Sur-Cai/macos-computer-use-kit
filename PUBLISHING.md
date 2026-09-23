@@ -106,7 +106,7 @@ that root-mounts the package. Prefer npm or the tarball for distribution.
   the generated READMEs. For this monorepo the file is
   `data/plugins/Sur-Cai__macos-computer-use-kit--packages-dsh.yml`, with `url`
   pointing at `.../tree/main/packages/dsh` and `name` written as
-  `Sur-Cai/macos-computer-use-kit#packages/dsh`.
+  `Sur-Cai/macos-computer-use-kit#dsh` (their convention is `owner/repo#<basename>`, e.g. `#dsh-cortex` for `workspace/plugins/dsh-cortex` — not `#packages/dsh`).
 
   Their CI enforces a **1-day minimum repository age** (ours was created
   2026-09-22T10:22Z, so the earliest valid submission is the next day at the same
@@ -138,15 +138,14 @@ intend to ship.
 
 | Artifact | Published | Notes |
 | --- | --- | --- |
-| `macos-computer-use-kit` | PyPI `0.2.2` (0.3.0 prepared) | `pip install macos-computer-use-kit` |
-| `pi-macos-computer-use` | npm `0.2.2` (0.3.0 prepared) | listed on pi.dev/packages |
-| `dsh-macos-computer-use` | npm `0.2.2` (0.3.0 prepared) | 11 tools in 0.3.0; awesome-dsh-plugin PR pending |
-| Claude Code plugin | new in 0.3.0 | served from this repository |
+| `macos-computer-use-kit` | PyPI `0.3.0` | `pip install macos-computer-use-kit` |
+| `pi-macos-computer-use` | npm `0.3.0` | listed on pi.dev/packages |
+| `dsh-macos-computer-use` | npm `0.3.0` | 11 tools; awesome-dsh-plugin PR #5753 |
+| Claude Code plugin | `0.3.0` | served from this repository |
 
 Discoverability keywords are part of the release, not an edit: npm and PyPI
 metadata is immutable per version, so adding `jev` / `typesafe-ai` /
 `system-one-models` required cutting 0.2.2. Keep that in mind when tweaking
 keywords — batch them with something else.
 
-Known follow-ups: the awesome-dsh-plugin catalog PR is gated on the 1-day
-repository-age rule (earliest 2026-09-23T10:22Z).
+Known follow-ups: the awesome-dsh-plugin catalog PR is submitted ([#5753](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5753)); the gate's age check self-clears when the repo crosses 1 day (2026-09-23T10:22Z) — no resubmit needed per their own message.
