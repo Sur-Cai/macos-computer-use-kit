@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "macos-computer-use-kit",
+  "description": "AX-first macOS computer use for Claude Code: an MCP server with 18 verified desktop tools plus the macos-computer-use skill.",
+  "owner": {
+    "name": "Sur-Cai",
+    "url": "https://github.com/Sur-Cai"
+  },
+  "plugins": [
+    {
+      "name": "macos-computer-use",
+      "description": "Operate macOS apps from Claude Code: accessibility snapshots with stable refs, background clicks/typing that never move your cursor, menus, windows, apps, set-of-mark screenshots, on-device OCR, and a deterministic safety policy.",
+      "version": "0.3.0",
+      "author": {
+        "name": "Sur-Cai"
+      },
+      "source": "./plugins/claude-code",
+      "category": "productivity",
+      "homepage": "https://github.com/Sur-Cai/macos-computer-use-kit",
+      "license": "MIT",
+      "keywords": ["macos", "computer-use", "mcp", "accessibility", "automation", "desktop"]
+    }
+  ]
+}

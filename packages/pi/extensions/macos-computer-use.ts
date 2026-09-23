@@ -320,16 +320,26 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 				Type.String({ description: "snapshot mode: cache file to write; resolve mode: cache file to read." }),
 			),
 			id: Type.Optional(Type.String({ description: "resolve mode: element id from a snapshot, e.g. 0.1.0.6." })),
+			ref: Type.Optional(Type.String({ description: "resolve mode: stable element ref from a snapshot (after '#')." })),
+			interactive: Type.Optional(
+				Type.Boolean({ description: "Only actionable elements (buttons, fields, links, menu items...)." }),
+			),
+			diff: Type.Optional(
+				Type.String({ description: "snapshot mode: an earlier snapshot file; return only what changed." }),
+			),
 		}),
 		async execute(_toolCallId, params, signal) {
 			const target = targetArgs(params.app, params.pid);
 			const mode = params.mode ?? "find";
 
 			if (mode === "resolve") {
-				if (!params.file || !params.id) {
-					throw new Error("macos_ax_find mode='resolve' needs both 'file' (snapshot cache) and 'id'.");
+				if (!params.file || !(params.id || params.ref)) {
+					throw new Error("macos_ax_find mode='resolve' needs 'file' (snapshot cache) and 'id' or 'ref'.");
 				}
-				const cli = await runCli(["ax", "resolve", "--file", params.file, "--id", params.id], { signal });
+				const args = ["ax", "resolve", "--file", params.file];
+				if (params.id) args.push("--id", params.id);
+				if (params.ref) args.push("--ref", params.ref);
+				const cli = await runCli(args, { signal });
 				return formatCli("ax resolve", cli);
 			}
 
@@ -339,6 +349,10 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 				if (params.file) args.push("--file", params.file);
 				if (params.depth !== undefined) args.push("--depth", String(params.depth));
 				if (params.max !== undefined) args.push("--max", String(params.max));
+				if (params.interactive) args.push("--interactive");
+				if (params.diff) args.push("--diff", params.diff);
+				if (params.role) args.push("--role", params.role);
+				if (params.title) args.push("--title", params.title);
 				const cli = await runCli(args, { signal, timeoutMs: 90_000 });
 				return formatCli("ax snapshot", cli);
 			}
@@ -348,6 +362,7 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 			if (params.title) args.push("--title", params.title);
 			if (params.max !== undefined) args.push("--max", String(params.max));
 			if (params.depth !== undefined) args.push("--depth", String(params.depth));
+			if (params.interactive) args.push("--interactive");
 			const cli = await runCli(args, { signal, timeoutMs: 90_000 });
 			return formatCli(`ax ${mode}`, cli);
 		},
@@ -363,9 +378,14 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 			"Prefer macos_ax_press over macos_input_click for standard AX elements; check the returned 'verified' field and fall back to macos_input_click or macos_paste only when it is false.",
 		],
 		parameters: Type.Object({
-			action: StringEnum(["press", "setvalue"], {
-				description: "press = invoke AXPress; setvalue = write text into the element",
+			action: StringEnum(["press", "setvalue", "focus", "action", "actions"], {
+				description:
+					"press = AXPress; setvalue = write text; focus = focus the element; action = run the AX action in 'name'; actions = list the element's AX actions",
 			}),
+			ref: Type.Optional(Type.String({ description: "Stable element ref from a snapshot (preferred over role/title)." })),
+			name: Type.Optional(
+				Type.String({ description: "action: AX action name, e.g. AXShowMenu, AXIncrement, AXConfirm." }),
+			),
 			app: Type.Optional(Type.String({ description: "App name or bundle id (substring match)." })),
 			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
 			role: Type.Optional(Type.String({ description: "AX role of the target, e.g. AXButton or AXTextField." })),
@@ -379,6 +399,9 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 			if (!target.length) throw new Error("macos_ax_press needs 'app' or 'pid'.");
 
 			const args = ["ax", params.action, ...target];
+			if (params.ref) args.push("--ref", params.ref);
+			if (params.name) args.push("--name", params.name);
+			if (params.action === "action" && !params.name) throw new Error("macos_ax_press action='action' needs 'name'.");
 			if (params.role) args.push("--role", params.role);
 			if (params.title) args.push("--title", params.title);
 
@@ -515,10 +538,11 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 			"Use macos_shot only to verify that an action changed the screen; never reason about a frame whose verdict is all_black.",
 		],
 		parameters: Type.Object({
-			command: StringEnum(["capture", "check", "windows"], {
+			command: StringEnum(["capture", "check", "windows", "displays", "annotate"], {
 				description:
-					"capture = save a window/region image; check = blank-frame analysis; windows = list capturable windows",
+					"capture = save a window/region image; check = blank-frame analysis; windows = list capturable windows; displays = display layout; annotate = numbered set-of-mark boxes on an app's interactive elements",
 			}),
+			crop: Type.Optional(Type.String({ description: "capture: 'x,y,w,h' screen rect to zoom into." })),
 			out: Type.Optional(Type.String({ description: "capture: output file path, e.g. /tmp/shot.png." })),
 			file: Type.Optional(Type.String({ description: "check: existing image to analyse." })),
 			app: Type.Optional(Type.String({ description: "App name or bundle id (substring match)." })),
@@ -530,6 +554,19 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 				if (!params.file) throw new Error("macos_shot command='check' needs 'file'.");
 				const cli = await runCli(["shot", "check", "--file", params.file], { signal });
 				return formatCli("shot check", cli);
+			}
+
+			if (params.command === "displays") {
+				const cli = await runCli(["shot", "displays"], { signal });
+				return formatCli("shot displays", cli);
+			}
+
+			if (params.command === "annotate") {
+				if (!params.app) throw new Error("macos_shot command='annotate' needs 'app'.");
+				const args = ["shot", "annotate", "--app", params.app];
+				if (params.out) args.push("--out", params.out);
+				const cli = await runCli(args, { signal, timeoutMs: 90_000 });
+				return formatCli("shot annotate", cli);
 			}
 
 			if (params.command === "windows") {
@@ -544,6 +581,7 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 			if (params.app) args.push("--app", params.app);
 			if (params.window_id !== undefined) args.push("--window-id", String(params.window_id));
 			if (params.region) args.push("--region", params.region);
+			if (params.crop) args.push("--crop", params.crop);
 			const cli = await runCli(args, { signal, timeoutMs: 60_000 });
 			return formatCli("shot capture", cli);
 		},
@@ -590,6 +628,191 @@ export default function macosComputerUse(pi: ExtensionAPI) {
 				timeoutMs: 120_000,
 			});
 			return formatCli(`jev ${params.command}`, cli);
+		},
+	});
+	pi.registerTool({
+		name: "macos_type",
+		label: "macOS CU: type",
+		description:
+			"Type text into the focused field of a macOS app with Unicode keyboard events: CJK, emoji, and accented text arrive intact, the clipboard is untouched, and the user's cursor does not move. Newlines are sent as Return (in chat apps that sends). Refused while a password field holds Secure Event Input. For very long text prefer macos_paste.",
+		promptSnippet: "Type Unicode text (CJK/emoji safe) into a macOS app",
+		parameters: Type.Object({
+			text: Type.String({ description: "Text to type." }),
+			app: Type.Optional(Type.String({ description: "App name or bundle id." })),
+			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["input", "type", "--text", params.text, ...targetArgs(params.app, params.pid)];
+			const cli = await runCli(args, { signal, timeoutMs: 60_000 + params.text.length * 20 });
+			return formatCli("input type", cli);
+		},
+	});
+
+	pi.registerTool({
+		name: "macos_pointer",
+		label: "macOS CU: scroll/drag/hover",
+		description:
+			"Pointer gestures posted to the target process (the user's cursor does not move): 'scroll' at x/y (dy > 0 down, dx > 0 right), 'drag' from x/y to to_x/to_y through intermediate points (sliders, reordering, selections), 'hover' to reveal tooltips or hover menus. Pass window_id to make coordinates window-relative.",
+		promptSnippet: "Scroll, drag, or hover in a macOS app",
+		parameters: Type.Object({
+			gesture: StringEnum(["scroll", "drag", "hover"], { description: "Which gesture to perform." }),
+			x: Type.Integer({ description: "X in screen points (window-relative with window_id)." }),
+			y: Type.Integer({ description: "Y in screen points (window-relative with window_id)." }),
+			to_x: Type.Optional(Type.Integer({ description: "drag: destination x." })),
+			to_y: Type.Optional(Type.Integer({ description: "drag: destination y." })),
+			dy: Type.Optional(Type.Integer({ description: "scroll: vertical amount, positive = down (default 5)." })),
+			dx: Type.Optional(Type.Integer({ description: "scroll: horizontal amount, positive = right." })),
+			app: Type.Optional(Type.String({ description: "App name or bundle id." })),
+			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
+			window_id: Type.Optional(Type.Integer({ description: "Target window id; makes coordinates window-relative." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["input", params.gesture, "--x", String(params.x), "--y", String(params.y)];
+			args.push(...targetArgs(params.app, params.pid));
+			if (params.window_id !== undefined) args.push("--window-id", String(params.window_id));
+			if (params.gesture === "drag") {
+				if (params.to_x === undefined || params.to_y === undefined) {
+					throw new Error("macos_pointer gesture='drag' needs 'to_x' and 'to_y'.");
+				}
+				args.push("--to-x", String(params.to_x), "--to-y", String(params.to_y));
+			}
+			if (params.gesture === "scroll") {
+				if (params.dy !== undefined) args.push("--amount", String(params.dy));
+				if (params.dx !== undefined) args.push("--dx", String(params.dx));
+			}
+			const cli = await runCli(args, { signal, timeoutMs: 45_000 });
+			return formatCli(`input ${params.gesture}`, cli);
+		},
+	});
+
+	pi.registerTool({
+		name: "macos_app",
+		label: "macOS CU: apps",
+		description:
+			"Manage macOS apps: 'list' running apps, 'launch' (and wait until it is running), 'activate' (bring to front, verified), 'hide', 'quit' (force for a hung app), or 'open' a URL or file, optionally with a specific app.",
+		promptSnippet: "List, launch, activate, hide, or quit macOS apps; open URLs and files",
+		parameters: Type.Object({
+			action: StringEnum(["list", "launch", "activate", "hide", "quit", "open"], { description: "What to do." }),
+			app: Type.Optional(Type.String({ description: "App name or bundle id." })),
+			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
+			target: Type.Optional(Type.String({ description: "open: URL or file path." })),
+			background: Type.Optional(Type.Boolean({ description: "launch/open without activating." })),
+			force: Type.Optional(Type.Boolean({ description: "quit: force terminate." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["app", params.action, ...targetArgs(params.app, params.pid)];
+			if (params.target) args.push("--target", params.target);
+			if (params.background) args.push("--background");
+			if (params.force) args.push("--force");
+			const cli = await runCli(args, { signal, timeoutMs: 45_000 });
+			return formatCli(`app ${params.action}`, cli);
+		},
+	});
+
+	pi.registerTool({
+		name: "macos_window",
+		label: "macOS CU: windows",
+		description:
+			"Manage an app's windows through accessibility: 'list' (title, position, size, main/focused/minimized/modal), 'move', 'resize', 'minimize', 'restore', 'raise', 'focus', 'close', or toggle 'fullscreen'. Pick a window by title substring or index; the default is the focused window.",
+		promptSnippet: "Move, resize, focus, minimize, or close a macOS window",
+		parameters: Type.Object({
+			action: StringEnum(["list", "move", "resize", "minimize", "restore", "raise", "focus", "close", "fullscreen"], {
+				description: "What to do.",
+			}),
+			app: Type.Optional(Type.String({ description: "App name or bundle id." })),
+			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
+			title: Type.Optional(Type.String({ description: "Window title substring." })),
+			index: Type.Optional(Type.Integer({ description: "Window index from action='list'." })),
+			x: Type.Optional(Type.Integer({ description: "move: new x." })),
+			y: Type.Optional(Type.Integer({ description: "move: new y." })),
+			width: Type.Optional(Type.Integer({ description: "resize: new width." })),
+			height: Type.Optional(Type.Integer({ description: "resize: new height." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["window", params.action, ...targetArgs(params.app, params.pid)];
+			if (params.title) args.push("--title", params.title);
+			if (params.index !== undefined) args.push("--index", String(params.index));
+			if (params.x !== undefined) args.push("--x", String(params.x));
+			if (params.y !== undefined) args.push("--y", String(params.y));
+			if (params.width !== undefined) args.push("--width", String(params.width));
+			if (params.height !== undefined) args.push("--height", String(params.height));
+			const cli = await runCli(args, { signal, timeoutMs: 45_000 });
+			return formatCli(`window ${params.action}`, cli);
+		},
+	});
+
+	pi.registerTool({
+		name: "macos_menu",
+		label: "macOS CU: menu bar",
+		description:
+			"Use an app's menu bar by path, e.g. 'File > Export…', without guessing shortcuts and without bringing the app forward. 'list' shows the items at a path (enabled state, shortcut, submenu); 'select' presses the item.",
+		promptSnippet: "List or select a macOS menu-bar item by path",
+		parameters: Type.Object({
+			action: StringEnum(["list", "select"], { description: "list items or select one." }),
+			path: Type.Optional(Type.String({ description: "Menu path separated by '>', e.g. 'View > Show Sidebar'." })),
+			app: Type.Optional(Type.String({ description: "App name or bundle id." })),
+			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["menu", params.action, ...targetArgs(params.app, params.pid)];
+			if (params.path) args.push("--path", params.path);
+			const cli = await runCli(args, { signal, timeoutMs: 45_000 });
+			return formatCli(`menu ${params.action}`, cli);
+		},
+	});
+
+	pi.registerTool({
+		name: "macos_ocr",
+		label: "macOS CU: OCR",
+		description:
+			"On-device OCR (Apple Vision) of an app window or screen region, returning each text line with its screen rect and center_screen. Pass 'text' to return only matches. Use when the accessibility tree is empty (games, canvas, custom-drawn UI); prefer macos_ax_find otherwise.",
+		promptSnippet: "Find text on screen with on-device OCR when accessibility is empty",
+		parameters: Type.Object({
+			app: Type.Optional(Type.String({ description: "App whose main window to read." })),
+			window_id: Type.Optional(Type.Integer({ description: "Window id to read." })),
+			region: Type.Optional(Type.String({ description: "'x,y,w,h' screen region to read." })),
+			text: Type.Optional(Type.String({ description: "Only return items containing this text." })),
+			languages: Type.Optional(Type.String({ description: "Recognition languages, e.g. 'zh-Hans,en-US'." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["ocr"];
+			if (params.app) args.push("--app", params.app);
+			if (params.window_id !== undefined) args.push("--window-id", String(params.window_id));
+			if (params.region) args.push("--region", params.region);
+			if (params.text) args.push("--text", params.text);
+			if (params.languages) args.push("--lang", params.languages);
+			const cli = await runCli(args, { signal, timeoutMs: 90_000 });
+			return formatCli("ocr", cli);
+		},
+	});
+
+	pi.registerTool({
+		name: "macos_wait",
+		label: "macOS CU: wait",
+		description:
+			"Wait until an element (by ref, or role/title, optionally containing 'value') appears in an app — or with gone=true, disappears. Use after actions that load or animate instead of sleeping. Exit code 7 on timeout.",
+		promptSnippet: "Wait for a macOS UI element to appear or disappear",
+		parameters: Type.Object({
+			app: Type.Optional(Type.String({ description: "App name or bundle id." })),
+			pid: Type.Optional(Type.Integer({ description: "Target a specific process id instead of 'app'." })),
+			ref: Type.Optional(Type.String({ description: "Stable element ref from a snapshot." })),
+			role: Type.Optional(Type.String({ description: "AX role filter." })),
+			title: Type.Optional(Type.String({ description: "Title/description/value substring." })),
+			value: Type.Optional(Type.String({ description: "The element's value must contain this." })),
+			gone: Type.Optional(Type.Boolean({ description: "Wait for the element to disappear." })),
+			timeout: Type.Optional(Type.Number({ description: "Seconds (default 10)." })),
+		}),
+		async execute(_toolCallId, params, signal) {
+			const args = ["ax", "wait", ...targetArgs(params.app, params.pid)];
+			if (params.ref) args.push("--ref", params.ref);
+			if (params.role) args.push("--role", params.role);
+			if (params.title) args.push("--title", params.title);
+			if (params.value) args.push("--value", params.value);
+			if (params.gone) args.push("--gone");
+			const timeout = params.timeout ?? 10;
+			args.push("--timeout", String(timeout));
+			const cli = await runCli(args, { signal, timeoutMs: (timeout + 30) * 1000 });
+			return formatCli("ax wait", cli);
 		},
 	});
 }

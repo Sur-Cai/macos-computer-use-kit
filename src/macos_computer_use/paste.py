@@ -19,7 +19,8 @@ import json
 import sys
 import time
 
-from . import darwin
+from . import darwin, gate, policy
+from .results import EXIT_POLICY
 
 
 def _pb():
@@ -60,6 +61,18 @@ def run(args: argparse.Namespace) -> int:
     Quartz, board, _string_type = _pb()  # noqa: N806
     result = {"steps": []}
 
+    pid = args.pid
+    if pid is None and args.app:
+        pid = darwin.resolve_pid(args.app)
+    refusal = gate.check(pid, typing=True)
+    if refusal:
+        print(json.dumps(refusal, ensure_ascii=False))
+        return EXIT_POLICY
+    dry = gate.dry_run_result("paste", pid=pid, text=policy.redact_text(args.text), mode=args.mode)
+    if dry:
+        print(json.dumps(dry, ensure_ascii=False))
+        return 0
+
     previous = read_text()
     before_count = board.changeCount()
     result["previous_len"] = len(previous)
@@ -72,9 +85,6 @@ def run(args: argparse.Namespace) -> int:
     after_count = board.changeCount()
     result["steps"].append("written")
 
-    pid = args.pid
-    if pid is None and args.app:
-        pid = darwin.resolve_pid(args.app)
     if args.mode == "pid" and pid is None:
         result.update(ok=False, reason="target_app_not_found", action_sent=False)
         print(json.dumps(result, ensure_ascii=False))
@@ -107,5 +117,6 @@ def run(args: argparse.Namespace) -> int:
         result.update(ok=True)
 
     result["steps"].append("finished")
+    gate.record("paste", pid, text=policy.redact_text(args.text), ok=result.get("ok"))
     print(json.dumps(result, ensure_ascii=False))
     return 0 if result.get("ok") else 2

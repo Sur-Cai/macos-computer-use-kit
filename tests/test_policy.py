@@ -63,7 +63,9 @@ class TestCliSurface:
         parser = build_parser()
         actions = [a for a in parser._actions if getattr(a, "choices", None)]
         groups = set(actions[0].choices)  # the `group` subparsers
-        assert groups == {"ax", "input", "paste", "shot", "overlay", "jev", "doctor"}
+        assert groups == {
+            "ax", "input", "paste", "app", "window", "menu", "shot", "ocr", "overlay", "jev", "mcp", "setup", "doctor",
+        }
 
     def test_ax_requires_an_explicit_shot_scale(self):
         from macos_computer_use.cli import build_parser

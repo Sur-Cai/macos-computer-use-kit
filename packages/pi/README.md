@@ -47,7 +47,7 @@ export MACOS_CU_BIN="$HOME/.local/bin/macos-cu"   # or whichever path `which mac
 - Two permissions, granted to the process that runs pi (Terminal, iTerm, or the
   pi app) — `macos-cu doctor` prints exactly what to enable:
   - **Accessibility** — AX reads, `AXPress`, `setValue`, posted events
-  - **Screen Recording** — `macos_shot` capture and check (without it every
+  - **Screen Recording** — `macos_shot` and `macos_ocr` (without it every
     frame is black)
 - Optional: `TYPESAFE_API_KEY` (or `~/.config/typesafe/api_key`) for
   `macos_jev_guard`. Everything else works without it.
@@ -56,14 +56,21 @@ export MACOS_CU_BIN="$HOME/.local/bin/macos-cu"   # or whichever path `which mac
 
 | Tool | What it does |
 | --- | --- |
-| `macos_cu_doctor` | Permissions, displays, dependencies, Jev setup |
-| `macos_ax_find` | Elements by AX role/title with exact screen geometry; also `tree`, `snapshot`, and `resolve` modes |
-| `macos_ax_press` | Native `AXPress` / `setValue` with read-back verification (`verified: true/false`) |
+| `macos_cu_doctor` | Permissions, displays, dependencies, OCR, safety policy, Jev setup |
+| `macos_ax_find` | Elements by AX role/title with exact screen geometry and stable refs; also `tree`, `snapshot` (budgeted, `--interactive`, diff) and `resolve` modes |
+| `macos_ax_press` | Native `AXPress` / `setValue` / focus / named AX actions by ref, with read-back verification (`verified: true/false`) |
 | `macos_input_windows` | Window ids, geometry, and the `pid:wid:x:y:w:h` target signature |
-| `macos_input_click` | Click screen or window-relative points without moving the user's cursor; `expect` refuses a moved window |
-| `macos_input_key` | Keystrokes and shortcuts (`key: "l"`, `flags: "cmd"`) |
-| `macos_paste` | Clipboard-safe paste for CJK/non-ASCII text, restoring the user's clipboard afterwards |
-| `macos_shot` | Screenshot capture plus blank-frame detection (`all_black` / `all_white` / `uniform` / `ok`) |
+| `macos_input_click` | Background click (left/right/middle, double/triple, modifiers) without moving the user's cursor; `expect` refuses a moved window |
+| `macos_input_key` | Keys and chords (`cmd+shift+t`, `mod+s`); lock / log-out / force-quit are refused |
+| `macos_type` | Unicode typing: CJK, emoji and accents arrive intact, clipboard untouched |
+| `macos_paste` | Clipboard-safe paste that proves the app consumed it and restores the user's clipboard |
+| `macos_pointer` | Scroll, drag and hover posted to the target process |
+| `macos_app` | List, launch, activate, hide, quit apps; open URLs and files |
+| `macos_window` | Move, resize, minimize, restore, raise, focus, close, fullscreen windows |
+| `macos_menu` | Menu bar by path (`File > Export…`), works with the app in the background |
+| `macos_shot` | Capture plus blank-frame detection; `annotate` draws set-of-mark labels |
+| `macos_ocr` | On-device Apple Vision OCR with screen coordinates |
+| `macos_wait` | Wait for an element to appear, disappear or hold a value |
 | `macos_jev_guard` | Optional Jev semantic guards before irreversible actions |
 
 Every tool returns the CLI's JSON output verbatim. Arguments are passed to the

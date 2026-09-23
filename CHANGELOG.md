@@ -3,6 +3,84 @@
 All notable changes to this project. The CLI, the pi package, and the dsh bundle
 share a version number.
 
+## 0.3.0
+
+The toolkit becomes an MCP server with first-class Claude Code support, and
+gains the action surface and safety layer that agent loops need.
+
+**MCP and agent clients**
+- `macos-cu mcp`: a dependency-free stdio MCP server with 18 tools. Observation
+  tools carry `readOnlyHint`. The tool list can be trimmed with `--read-only`,
+  `--tools` and `--exclude-tools`, and `--list-tools` prints it.
+- Claude Code plugin + marketplace (`/plugin marketplace add
+  Sur-Cai/macos-computer-use-kit`): the MCP server, the skill and a
+  `/macos-doctor` command. The launcher resolves `macos-cu`, then `uvx`, then
+  `pipx run`.
+- `macos-cu setup claude-code|claude-desktop|codex|cursor|gemini|opencode|skill|print`:
+  idempotent registration with `--dry-run`. JSON configs are merged, with a
+  one-time `.bak` backup.
+- New `macos-computer-use-kit` console script, so `uvx macos-computer-use-kit mcp`
+  works without `--from`. The skill ships inside the wheel.
+
+**Observation**
+- Stable, content-derived element refs (`#9d2261d7`) that survive layout churn.
+  `--ref` works in `press`/`setvalue`/`focus`/`action`/`actions`/`wait`, and a
+  ref that no longer resolves returns `stale_ref` instead of acting on a guess.
+- `ax snapshot --interactive --budget N` trims a large tree to the elements
+  worth acting on; `--diff <earlier snapshot>` returns only what was added,
+  removed or changed.
+- `ax at` (hit-test), `ax actions`, `ax action --name AXShowMenu|AXIncrement|…`,
+  `ax focus`, `ax wait` (appear / `--gone` / `--value`, exit 7 on timeout).
+- Electron/Chromium: the full tree is enabled automatically via
+  `AXManualAccessibility` / `AXEnhancedUserInterface` when a walk comes back
+  nearly empty.
+- AX calls are capped by a messaging timeout (`MACOS_CU_AX_TIMEOUT`, default
+  3 s), so a hung app cannot hang the agent.
+- `shot annotate` (set-of-mark labels linked to refs), `shot displays`,
+  `--region`, `--display`, `--crop`, inline `--base64` with `--max-width`.
+- `ocr`: on-device Apple Vision OCR with screen coordinates, `--text` matching and
+  `--lang`. No extra dependency; the system framework is loaded directly.
+
+**Action**
+- `input type`: Unicode key events, so CJK, emoji and accents arrive intact
+  without touching the clipboard.
+- `input key` accepts chords (`cmd+shift+t`, `mod+s`, `f5`) and `--repeat`.
+- `input click --button right|middle --count 2|3 --flags cmd+shift`; new
+  `drag`, `hover`, and pixel/line `scroll` with horizontal `--dx`.
+- `app list|launch|activate|hide|quit|open`, `window list|move|resize|minimize|restore|raise|focus|close|fullscreen`,
+  `menu list|select --path "File > Export…"`.
+
+**Reliability and safety**
+- Uniform result envelope: `ok`, `reason`, `action_sent`, and
+  `retry: reobserve|retry|never`, plus stable exit codes `6` (policy) and `7` (timeout).
+- Deterministic policy in front of every input:
+  - a built-in sensitive-app deny list (password managers, Keychain Access,
+    Passwords, SecurityAgent, login window and auth prompts);
+  - a Secure Event Input check before typing, and a locked-screen check;
+  - lock / log-out / force-quit chords refused;
+  - `MACOS_CU_ALLOW_APPS` / `MACOS_CU_DENY_APPS` allow/deny lists and
+    `MACOS_CU_DRY_RUN`.
+- `MACOS_CU_AUDIT=1` appends one JSON line per mutating action. Typed text is
+  recorded by length only.
+- Secure text fields are redacted in every tree, snapshot and fingerprint.
+- Snapshot caches and the audit log are created `0700`/`0600`, and snapshots
+  are pruned to the newest 20 (`MACOS_CU_SNAPSHOT_KEEP`).
+- `doctor` reports display `bounds` in the top-left point space that AX and
+  CGEvent use (secondary displays may be negative), plus OCR and policy status.
+
+**Integrations**
+- pi package: 16 tools (adds `macos_type`, `macos_pointer`, `macos_app`,
+  `macos_window`, `macos_menu`, `macos_ocr`, `macos_wait`).
+- dsh bundle: 11 tools (adds `macos_type`, `macos_key`, `macos_app`,
+  `macos_menu`, `macos_ocr`).
+- One canonical skill in `skill/`, copied into every package by
+  `scripts/sync-skill.sh` (checked in CI).
+
+**Docs**
+- The README was rewritten, and a Chinese translation was added
+  (`README.zh-CN.md`, with a language switcher). It adds a tools table, a
+  safety and privacy section, and an index of related projects.
+
 ## 0.2.2
 
 Discoverability and parity for the optional Jev (TypeSafe System One) guards.

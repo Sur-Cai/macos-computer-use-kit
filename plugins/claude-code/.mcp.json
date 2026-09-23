@@ -1,0 +1,6 @@
+{
+  "macos-computer-use": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/bin/macos-cu-mcp",
+    "args": []
+  }
+}

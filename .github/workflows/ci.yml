@@ -10,11 +10,15 @@ jobs:
     # Real macOS runner: the CLI is macOS-only, and doctor must not crash in CI
     # where the TCC permissions are absent.
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - name: Install
         run: python -m pip install --upgrade pip && pip install -e ".[dev]"
       - name: Unit tests
@@ -23,6 +27,17 @@ jobs:
         run: |
           macos-cu --version
           macos-cu doctor || true
+      - name: MCP server lists its tools
+        run: |
+          macos-cu mcp --list-tools > /tmp/tools.json
+          python -c "import json; d=json.load(open('/tmp/tools.json')); t=d if isinstance(d,list) else d['tools']; assert len(t)==18, len(t)"
+      - name: Skill copies are in sync
+        run: scripts/sync-skill.sh --check
+      - name: Build and check the distribution
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
       - name: Byte-compile every module and shim
         run: python -m compileall -q src tools
 

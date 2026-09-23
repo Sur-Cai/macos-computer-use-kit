@@ -86,28 +86,49 @@ def _frontmost_owner_name() -> str:
 
 
 def displays() -> list[dict[str, Any]]:
-    """Screen geometry in points, as AX reports it.
+    """Display geometry, in the same top-left point space AX and CGEvent use.
 
-    Note: AX/CoreGraphics use a top-left origin space whose (0,0) is the primary
-    display. Secondary displays placed left of or above the primary produce
-    negative coordinates, which is normal.
+    ``bounds`` is ``[x, y, w, h]`` in global screen points with the origin at the
+    primary display's top-left, so it can be compared directly with AX element
+    positions and ``input --x/--y``. Secondary displays placed left of or above
+    the primary have negative ``x``/``y``; that is normal. ``pixels`` is the
+    backing-store size (``points * backing_scale`` on Retina displays).
+    ``origin`` is the Cocoa (bottom-left) frame origin, kept for compatibility.
     """
     from AppKit import NSScreen
 
+    _AS, _NSWorkspace, Quartz = _pyobjc()  # noqa: N806
     out = []
     for i, screen in enumerate(NSScreen.screens()):
         frame = screen.frame()
-        out.append(
-            {
-                "index": i,
-                "primary": i == 0,
-                "name": str(screen.localizedName()),
-                "points": [int(frame.size.width), int(frame.size.height)],
-                "backing_scale": int(screen.backingScaleFactor()),
-                "origin": [int(frame.origin.x), int(frame.origin.y)],
-            }
-        )
+        scale = float(screen.backingScaleFactor())
+        entry: dict[str, Any] = {
+            "index": i,
+            "primary": i == 0,
+            "name": str(screen.localizedName()),
+            "points": [int(frame.size.width), int(frame.size.height)],
+            "backing_scale": int(scale) if scale.is_integer() else scale,
+            "pixels": [int(frame.size.width * scale), int(frame.size.height * scale)],
+            "origin": [int(frame.origin.x), int(frame.origin.y)],
+        }
+        try:
+            display_id = int(screen.deviceDescription()["NSScreenNumber"])
+            b = Quartz.CGDisplayBounds(display_id)
+            entry["display_id"] = display_id
+            entry["bounds"] = [int(b.origin.x), int(b.origin.y), int(b.size.width), int(b.size.height)]
+        except Exception:  # pragma: no cover - defensive
+            pass
+        out.append(entry)
     return out
+
+
+def display_for_point(x: float, y: float) -> dict[str, Any] | None:
+    """The display whose top-left-space bounds contain a global point."""
+    for d in displays():
+        b = d.get("bounds")
+        if b and b[0] <= x < b[0] + b[2] and b[1] <= y < b[1] + b[3]:
+            return d
+    return None
 
 
 def primary_screen_point_size() -> tuple[int, int]:
@@ -154,6 +175,48 @@ def find_app(name: str | None):
             if tier(app):
                 return app
     return None
+
+
+def app_info_for_pid(pid: int) -> dict[str, Any]:
+    """Bundle id and name for a pid (empty strings when unknown)."""
+    try:
+        from AppKit import NSRunningApplication
+
+        app = NSRunningApplication.runningApplicationWithProcessIdentifier_(int(pid))
+    except Exception:  # pragma: no cover - defensive
+        app = None
+    if app is None:
+        return {"pid": int(pid), "bundle": "", "name": ""}
+    return {
+        "pid": int(pid),
+        "bundle": str(app.bundleIdentifier() or ""),
+        "name": str(app.localizedName() or ""),
+    }
+
+
+def secure_input_pid() -> int | None:
+    """Pid of the process holding Secure Event Input (a focused password field).
+
+    macOS turns secure input on while a password field has focus; synthetic
+    keystrokes into it are exactly what an agent must not do. Returns None when
+    secure input is off or the session dictionary is unavailable.
+    """
+    try:
+        _AS, _NSWorkspace, Quartz = _pyobjc()  # noqa: N806
+        session = Quartz.CGSessionCopyCurrentDictionary() or {}
+        pid = session.get("kCGSSessionSecureInputPID")
+        return int(pid) if pid else None
+    except Exception:  # pragma: no cover - defensive
+        return None
+
+
+def screen_locked() -> bool:
+    try:
+        _AS, _NSWorkspace, Quartz = _pyobjc()  # noqa: N806
+        session = Quartz.CGSessionCopyCurrentDictionary() or {}
+        return bool(session.get("CGSSessionScreenIsLocked"))
+    except Exception:  # pragma: no cover - defensive
+        return False
 
 
 def resolve_pid(app_name: str | None = None, pid: int | None = None) -> int | None:

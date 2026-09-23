@@ -1,0 +1,32 @@
+#!/bin/sh
+# Launch the macos-computer-use MCP server for Claude Code.
+#
+# Resolution order (first hit wins):
+#   1. $MACOS_CU_BIN                      explicit override
+#   2. macos-cu on PATH, ~/.local/bin, the install.sh venv
+#   3. uvx macos-computer-use-kit         no install needed, cached by uv
+#   4. pipx run macos-computer-use-kit
+# Extra arguments are passed through, e.g. --read-only.
+set -eu
+
+for candidate in "${MACOS_CU_BIN:-}" "$(command -v macos-cu 2>/dev/null || true)" \
+  "$HOME/.local/bin/macos-cu" "$HOME/.local/share/macos-computer-use/venv/bin/macos-cu"; do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    exec "$candidate" mcp "$@"
+  fi
+done
+
+for uvx in "$(command -v uvx 2>/dev/null || true)" "$HOME/.local/bin/uvx" /opt/homebrew/bin/uvx /usr/local/bin/uvx; do
+  if [ -n "$uvx" ] && [ -x "$uvx" ]; then
+    exec "$uvx" macos-computer-use-kit mcp "$@"
+  fi
+done
+
+if command -v pipx >/dev/null 2>&1; then
+  exec pipx run macos-computer-use-kit mcp "$@"
+fi
+
+echo "macos-computer-use: the macos-cu CLI was not found and neither uvx nor pipx is available." >&2
+echo "Install it with:  pipx install macos-computer-use-kit   (or: pip install macos-computer-use-kit)" >&2
+echo "or install uv:    https://docs.astral.sh/uv/  then restart Claude Code." >&2
+exit 1

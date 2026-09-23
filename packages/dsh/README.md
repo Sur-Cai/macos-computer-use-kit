@@ -4,17 +4,22 @@ DeepSeek Harness (dsh) bundle bridging dsh agents to the
 [macos-computer-use-kit](https://github.com/Sur-Cai/macos-computer-use-kit)
 `macos-cu` CLI: AX-first computer use on macOS.
 
-The plugin registers six focused tools that shell out to `macos-cu` with an
+The plugin registers eleven focused tools that shell out to `macos-cu` with an
 argument array (never shell-string concatenation) and return the CLI's JSON
 output:
 
 | Tool | CLI call | Purpose |
 | --- | --- | --- |
-| `macos_cu_doctor` | `macos-cu doctor` | Permissions/displays/deps/Jev diagnostics — run first |
-| `macos_ax_find` | `macos-cu ax find\|tree` | Semantic element lookup with exact geometry |
-| `macos_ax_press` | `macos-cu ax press\|setvalue` | Native AX action with read-back verification |
-| `macos_input_click` | `macos-cu input click` | Window-scoped click that never moves the user's cursor |
-| `macos_shot` | `macos-cu shot capture\|check\|windows` | Blank-frame-checked screenshots for verification only |
+| `macos_cu_doctor` | `macos-cu doctor` | Permissions/displays/deps/OCR/policy/Jev diagnostics — run first |
+| `macos_ax_find` | `macos-cu ax find\|tree\|snapshot` | Semantic element lookup with exact geometry and stable refs |
+| `macos_ax_press` | `macos-cu ax press\|setvalue\|focus` | Native AX action by ref with read-back verification |
+| `macos_input_click` | `macos-cu input click` | Background click that never moves the user's cursor |
+| `macos_type` | `macos-cu input type` | Unicode typing (CJK/emoji safe, clipboard untouched) |
+| `macos_key` | `macos-cu input key` | Keys and chords; lock / log-out / force-quit refused |
+| `macos_app` | `macos-cu app` | List, launch, activate, hide, quit apps; open URLs and files |
+| `macos_menu` | `macos-cu menu list\|select` | Menu bar by path, with the app in the background |
+| `macos_shot` | `macos-cu shot capture\|check\|windows\|annotate` | Blank-frame-checked screenshots and set-of-mark labels |
+| `macos_ocr` | `macos-cu ocr` | On-device OCR with screen coordinates when AX is empty |
 | `macos_jev_guard` | `macos-cu jev guard\|select` | Optional Jev semantic guard before an irreversible action (needs `TYPESAFE_API_KEY`) |
 
 The AX-first intent is baked into every tool description: locate elements via
@@ -40,7 +45,7 @@ From a tarball (prebuilt, no build permission needed):
 
 ```sh
 npm pack ./packages/dsh
-dsh plugin --profile <name> add ./dsh-macos-computer-use-0.2.0.tgz
+dsh plugin --profile <name> add ./dsh-macos-computer-use-0.3.0.tgz
 ```
 
 Verify the layer without booting, then boot:
@@ -60,8 +65,8 @@ dsh --profile <name>
 - One-time macOS grants for the process hosting dsh: **Accessibility** (AX
   reads, `AXPress`, `setValue`, posted events) and **Screen Recording**
   (`shot`, otherwise every frame is black). `macos_cu_doctor` reports both.
-- Optional: `TYPESAFE_API_KEY` for the CLI's Jev semantic guards
-  (`macos-cu jev guard|select`, invoked via shell — no dedicated tool here).
+- Optional: `TYPESAFE_API_KEY` for `macos_jev_guard` (the CLI's
+  `macos-cu jev guard|select`). Everything else works without it.
 
 ## Computer-use slot decision
 

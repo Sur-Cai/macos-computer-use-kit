@@ -1,0 +1,13 @@
+{
+  "name": "macos-computer-use",
+  "version": "0.3.0",
+  "description": "AX-first macOS computer use: accessibility snapshots with stable refs, background input that never moves your cursor, Unicode typing, menus, windows, apps, set-of-mark screenshots, on-device OCR, verified actions, and a deterministic safety policy.",
+  "author": {
+    "name": "Sur-Cai",
+    "url": "https://github.com/Sur-Cai"
+  },
+  "homepage": "https://github.com/Sur-Cai/macos-computer-use-kit",
+  "repository": "https://github.com/Sur-Cai/macos-computer-use-kit",
+  "license": "MIT",
+  "keywords": ["macos", "computer-use", "mcp", "accessibility", "automation", "gui-agent"]
+}

@@ -1,6 +1,6 @@
 /**
  * dsh bundle bridging DeepSeek Harness to the `macos-cu` CLI (AX-first
- * computer use on macOS). Registers five focused tools that shell out with an
+ * computer use on macOS). Registers eleven focused tools that shell out with an
  * argument array and return the CLI's JSON output.
  * @module dsh-macos-computer-use
  */
@@ -40,9 +40,11 @@ const axFind = defineTool({
     title: { type: 'string', description: 'Substring of the element title/name to match.' },
     mode: {
       type: 'string',
-      enum: ['find', 'tree'],
-      description: 'find returns matches with geometry; tree dumps the subtree. Default find.',
+      enum: ['find', 'tree', 'snapshot'],
+      description:
+        'find returns matches with geometry; tree dumps the subtree; snapshot is a budgeted text list with stable #refs. Default find.',
     },
+    interactive: { type: 'boolean', description: 'Only actionable elements (buttons, fields, links, menu items).' },
     depth: { type: 'integer', description: 'Tree walk depth (tree mode).' },
     max: { type: 'integer', description: 'Maximum elements to return.' },
   },
@@ -54,6 +56,7 @@ const axFind = defineTool({
     pushOpt(argv, '--title', args.title)
     pushOpt(argv, '--depth', args.depth)
     pushOpt(argv, '--max', args.max)
+    pushFlag(argv, '--interactive', args.interactive)
     return runMacosCu(argv, exec.signal)
   },
 })
@@ -65,9 +68,10 @@ const axPress = defineTool({
     action: {
       type: 'string',
       required: true,
-      enum: ['press', 'setvalue'],
-      description: 'press activates the element; setvalue writes text into it.',
+      enum: ['press', 'setvalue', 'focus'],
+      description: 'press activates the element; setvalue writes text into it; focus focuses it.',
     },
+    ref: { type: 'string', description: 'Stable element ref from a snapshot (preferred over role/title).' },
     app: { type: 'string', description: 'App name or bundle id.' },
     role: { type: 'string', description: 'AX role filter, e.g. AXButton, AXTextField.' },
     title: { type: 'string', description: 'Substring of the element title/name to match.' },
@@ -80,6 +84,7 @@ const axPress = defineTool({
     }
     const argv = ['ax', args.action]
     pushOpt(argv, '--app', args.app)
+    pushOpt(argv, '--ref', args.ref)
     pushOpt(argv, '--role', args.role)
     pushOpt(argv, '--title', args.title)
     pushOpt(argv, '--text', args.text)
@@ -127,8 +132,9 @@ const shot = defineTool({
     action: {
       type: 'string',
       required: true,
-      enum: ['capture', 'check', 'windows'],
-      description: 'capture takes a screenshot; check classifies a file; windows lists capturable windows.',
+      enum: ['capture', 'check', 'windows', 'annotate'],
+      description:
+        'capture takes a screenshot; check classifies a file; windows lists capturable windows; annotate draws numbered marks on interactive elements.',
     },
     app: { type: 'string', description: 'App name to capture.' },
     out: { type: 'string', description: 'Output PNG path for capture (e.g. /tmp/shot.png).' },
@@ -186,6 +192,92 @@ const jevGuard = defineTool({
   },
 })
 
+const typeText = defineTool({
+  name: 'macos_type',
+  description: `Type text into the focused field with Unicode key events: \`macos-cu input type\`. CJK, emoji and accents arrive intact, the clipboard is untouched, and the cursor does not move. Newlines become Return. Refused while a password field holds Secure Event Input.${AX_FIRST}`,
+  parameters: {
+    text: { type: 'string', required: true, description: 'Text to type.' },
+    app: { type: 'string', description: 'App name or bundle id.' },
+  },
+  output: OUTPUT,
+  async execute(args, exec) {
+    const argv = ['input', 'type', '--text', args.text]
+    pushOpt(argv, '--app', args.app)
+    return runMacosCu(argv, exec.signal)
+  },
+})
+
+const key = defineTool({
+  name: 'macos_key',
+  description: `Press a key or chord in an app without moving the cursor: \`macos-cu input key\` (e.g. return, escape, cmd+l, cmd+shift+t). Lock / log-out / force-quit chords are refused by policy.`,
+  parameters: {
+    key: { type: 'string', required: true, description: 'Key or chord, e.g. cmd+l.' },
+    app: { type: 'string', description: 'App name or bundle id.' },
+  },
+  output: OUTPUT,
+  async execute(args, exec) {
+    const argv = ['input', 'key', '--key', args.key]
+    pushOpt(argv, '--app', args.app)
+    return runMacosCu(argv, exec.signal)
+  },
+})
+
+const app = defineTool({
+  name: 'macos_app',
+  description: `Manage apps: \`macos-cu app list|launch|activate|hide|quit|open\`. open takes a URL or file path in target.`,
+  parameters: {
+    action: {
+      type: 'string',
+      required: true,
+      enum: ['list', 'launch', 'activate', 'hide', 'quit', 'open'],
+      description: 'What to do.',
+    },
+    app: { type: 'string', description: 'App name or bundle id.' },
+    target: { type: 'string', description: 'open: URL or file path.' },
+  },
+  output: OUTPUT,
+  async execute(args, exec) {
+    const argv = ['app', args.action]
+    pushOpt(argv, '--app', args.app)
+    pushOpt(argv, '--target', args.target)
+    return runMacosCu(argv, exec.signal)
+  },
+})
+
+const menu = defineTool({
+  name: 'macos_menu',
+  description: `Use the menu bar by path without guessing shortcuts: \`macos-cu menu list|select --path "File > Export…"\`. Works with the app in the background.`,
+  parameters: {
+    action: { type: 'string', required: true, enum: ['list', 'select'], description: 'list items or select one.' },
+    app: { type: 'string', required: true, description: 'App name or bundle id.' },
+    path: { type: 'string', description: "Menu path separated by '>'." },
+  },
+  output: OUTPUT,
+  async execute(args, exec) {
+    const argv = ['menu', args.action, '--app', args.app]
+    pushOpt(argv, '--path', args.path)
+    return runMacosCu(argv, exec.signal)
+  },
+})
+
+const ocr = defineTool({
+  name: 'macos_ocr',
+  description: `On-device OCR (Apple Vision) with screen coordinates: \`macos-cu ocr\`. Use when the accessibility tree is empty (games, canvas, custom UI); pass text to return only matches with center_screen.`,
+  parameters: {
+    app: { type: 'string', description: 'App whose main window to read.' },
+    region: { type: 'string', description: 'x,y,w,h screen region.' },
+    text: { type: 'string', description: 'Only return items containing this text.' },
+  },
+  output: OUTPUT,
+  async execute(args, exec) {
+    const argv = ['ocr']
+    pushOpt(argv, '--app', args.app)
+    pushOpt(argv, '--region', args.region)
+    pushOpt(argv, '--text', args.text)
+    return runMacosCu(argv, exec.signal)
+  },
+})
+
 /** Register the macos-cu bridge tools. Tool registrations auto-dispose on unload. */
 export function apply(ctx: Context): void {
   ctx.tools.register(doctor)
@@ -194,4 +286,9 @@ export function apply(ctx: Context): void {
   ctx.tools.register(inputClick)
   ctx.tools.register(shot)
   ctx.tools.register(jevGuard)
+  ctx.tools.register(typeText)
+  ctx.tools.register(key)
+  ctx.tools.register(app)
+  ctx.tools.register(menu)
+  ctx.tools.register(ocr)
 }

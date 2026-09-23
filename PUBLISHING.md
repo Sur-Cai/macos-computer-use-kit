@@ -4,31 +4,34 @@
 > its own npm/PyPI names without reverse-engineering this layout. Nothing here is
 > secret — no credentials, no private infrastructure, no deploy internals.
 
-Three artifacts can be published from this repository, all versioned in lockstep
-with the CLI (bump `pyproject.toml`, `packages/pi/package.json`, and
-`packages/dsh/package.json` together):
+Three registry artifacts can be published from this repository, plus the
+Claude Code plugin that is served straight from the git repo. All are versioned
+in lockstep; `tests/test_v03.py::TestVersionLockstep` fails if they drift:
 
 | Artifact | Registry | Command |
 | --- | --- | --- |
 | `macos-computer-use-kit` | PyPI | `python -m build && twine upload dist/*` |
 | `pi-macos-computer-use` | npm | `cd packages/pi && npm publish` |
 | `dsh-macos-computer-use` | npm | `cd packages/dsh && npm publish` |
+| `macos-computer-use` plugin | git (Claude Code marketplace) | push to `main`; users run `/plugin marketplace add Sur-Cai/macos-computer-use-kit` |
 
 ## Before the first publish
 
 1. **Never commit a key.** The Jev key lives in `~/.config/typesafe/api_key` and
    the environment. Check `git status` and `git diff --cached` before pushing;
    `.gitignore` already excludes `node_modules/`, build output, and `*.png`.
-2. **Bump all three versions together.** They are independent manifests:
-   `pyproject.toml`, `packages/pi/package.json`, `packages/dsh/package.json`.
-   `packages/pi/skills/macos-computer-use/SKILL.md` is a copy of `skill/SKILL.md`
-   — refresh it (`cp skill/SKILL.md packages/pi/skills/macos-computer-use/SKILL.md`)
-   and re-run `./install.sh` to refresh the opencode copy.
+2. **Bump every version together.** The manifests are independent:
+   `pyproject.toml`, `src/macos_computer_use/__init__.py`,
+   `packages/pi/package.json`, `packages/dsh/package.json`,
+   `plugins/claude-code/.claude-plugin/plugin.json` and the plugin entry in
+   `.claude-plugin/marketplace.json`. The skill copies are refreshed with
+   `scripts/sync-skill.sh`.
 3. **Add GitHub topics** for discoverability (Repository → About → Topics):
 
    ```
-   dsh-plugin  pi-package  macos  computer-use  accessibility
-   ai-agents  agent-skills  gui-automation  opencode
+   mcp  mcp-server  claude-code  computer-use  macos  accessibility
+   ai-agents  agent-skills  gui-automation  desktop-automation  ocr
+   dsh-plugin  pi-package  opencode
    ```
 
    `dsh-plugin` is how <https://github.com/topics/dsh-plugin> indexes plugins;
@@ -40,7 +43,7 @@ with the CLI (bump `pyproject.toml`, `packages/pi/package.json`, and
 python -m pip install --upgrade build twine
 python -m build                       # sdist + wheel in dist/
 twine check dist/*
-twine upload dist/*                   # needs a PyPI API token
+TWINE_USERNAME=__token__ TWINE_PASSWORD="$PYPI_TOKEN" twine upload dist/*
 ```
 
 Verify the install path in a clean venv before tagging:
@@ -114,11 +117,19 @@ that root-mounts the package. Prefer npm or the tarball for distribution.
 ## Release checklist
 
 ```bash
-./install.sh                      # local sanity: CLI + skill
+pytest -q
+scripts/sync-skill.sh --check
+claude plugin validate . && claude plugin validate plugins/claude-code
+macos-cu mcp --list-tools         # 18 tools
 macos-cu doctor                   # permissions still granted after reinstalling
-(cd packages/pi  && npm run typecheck)
-(cd packages/dsh && npm run typecheck && npm run build)
+(cd packages/pi  && npm ci && npm run typecheck)
+(cd packages/dsh && npm ci && npm run typecheck && npm run build)
 ```
+
+Tokens come from the environment for the one command that needs them
+(`TWINE_PASSWORD`, `NODE_AUTH_TOKEN` via a temporary `.npmrc` outside the repo).
+Never write them into the repository, and revoke any token that was pasted into
+a chat or a log.
 
 Then tag (`git tag v<version> && git push --tags`) and publish the artifacts you
 intend to ship.
@@ -127,9 +138,10 @@ intend to ship.
 
 | Artifact | Published | Notes |
 | --- | --- | --- |
-| `macos-computer-use-kit` | PyPI `0.2.2` | `pip install macos-computer-use-kit` |
-| `pi-macos-computer-use` | npm `0.2.2` | listed on pi.dev/packages |
-| `dsh-macos-computer-use` | npm `0.2.2` | 6 tools; awesome-dsh-plugin PR pending |
+| `macos-computer-use-kit` | PyPI `0.2.2` (0.3.0 prepared) | `pip install macos-computer-use-kit` |
+| `pi-macos-computer-use` | npm `0.2.2` (0.3.0 prepared) | listed on pi.dev/packages |
+| `dsh-macos-computer-use` | npm `0.2.2` (0.3.0 prepared) | 11 tools in 0.3.0; awesome-dsh-plugin PR pending |
+| Claude Code plugin | new in 0.3.0 | served from this repository |
 
 Discoverability keywords are part of the release, not an edit: npm and PyPI
 metadata is immutable per version, so adding `jev` / `typesafe-ai` /

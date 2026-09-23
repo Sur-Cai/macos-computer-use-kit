@@ -4,14 +4,25 @@ build-backend = "hatchling.build"
 
 [project]
 name = "macos-computer-use-kit"
-version = "0.2.2"
-description = "AX-first computer-use toolkit for AI agents on macOS: accessibility-tree targeting, process-scoped input, clipboard-safe paste, action read-back verification, visual feedback, and optional Jev semantic guards."
+version = "0.3.0"
+description = "AX-first macOS computer use for AI agents: an MCP server + CLI for Claude Code, Codex, Cursor and any MCP client. Accessibility-tree targeting with stable refs, background input that never moves your cursor, Unicode typing, menus/windows/apps, set-of-mark screenshots, on-device OCR, verified actions, and a deterministic safety policy."
 license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = [
   "computer-use",
+  "mcp",
+  "mcp-server",
+  "model-context-protocol",
+  "claude-code",
+  "claude",
+  "codex",
+  "cursor",
+  "desktop-automation",
+  "gui-agent",
+  "ocr",
+  "set-of-mark",
   "macos",
   "accessibility",
   "automation",
@@ -47,15 +58,32 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# OCR works without this (the system Vision.framework is loaded directly);
+# installing the wrapper just gives the typed pyobjc bindings.
+ocr = ["pyobjc-framework-Vision>=10.0; sys_platform == 'darwin'"]
 dev = ["pytest>=8.0"]
 
 [project.urls]
 Homepage = "https://github.com/Sur-Cai/macos-computer-use-kit"
 Repository = "https://github.com/Sur-Cai/macos-computer-use-kit"
 Issues = "https://github.com/Sur-Cai/macos-computer-use-kit/issues"
+Changelog = "https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/Sur-Cai/macos-computer-use-kit#readme"
 
 [project.scripts]
 macos-cu = "macos_computer_use.cli:main"
+# Lets `uvx macos-computer-use-kit mcp` work without --from.
+macos-computer-use-kit = "macos_computer_use.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/macos_computer_use"]
+
+# Ship the agent skill inside the wheel so `macos-cu setup skill` works from PyPI.
+[tool.hatch.build.targets.wheel.force-include]
+"skill" = "macos_computer_use/_skill"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/skill", "/tests", "/README.md", "/README.zh-CN.md", "/CHANGELOG.md", "/LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

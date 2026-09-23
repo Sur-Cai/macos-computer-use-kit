@@ -1,298 +1,331 @@
+<div align="center">
+
 # macos-computer-use-kit
 
-[![PyPI](https://img.shields.io/pypi/v/macos-computer-use-kit)](https://pypi.org/project/macos-computer-use-kit/)
-[![Python versions](https://img.shields.io/pypi/pyversions/macos-computer-use-kit)](https://pypi.org/project/macos-computer-use-kit/)
-[![pi package](https://img.shields.io/npm/v/pi-macos-computer-use)](https://www.npmjs.com/package/pi-macos-computer-use)
-[![dsh plugin](https://img.shields.io/npm/v/dsh-macos-computer-use)](https://www.npmjs.com/package/dsh-macos-computer-use)
+**AX-first macOS computer use for AI agents: an MCP server and a CLI.**
+Agents read the accessibility tree instead of guessing coordinates from
+screenshots. Input is posted to the target app in the background, so your
+cursor never moves, and every action is verified.
+
+**English** · [简体中文](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/README.zh-CN.md)
+
+[![PyPI](https://img.shields.io/pypi/v/macos-computer-use-kit?label=PyPI)](https://pypi.org/project/macos-computer-use-kit/)
+[![Python](https://img.shields.io/pypi/pyversions/macos-computer-use-kit)](https://pypi.org/project/macos-computer-use-kit/)
+[![pi package](https://img.shields.io/npm/v/pi-macos-computer-use?label=pi)](https://www.npmjs.com/package/pi-macos-computer-use)
+[![dsh plugin](https://img.shields.io/npm/v/dsh-macos-computer-use?label=dsh)](https://www.npmjs.com/package/dsh-macos-computer-use)
 [![CI](https://github.com/Sur-Cai/macos-computer-use-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Sur-Cai/macos-computer-use-kit/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-stdio-6f42c1)](https://modelcontextprotocol.io)
+[![macOS 12+](https://img.shields.io/badge/macOS-12%2B-black?logo=apple)](#requirements)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/LICENSE)
 
-**AX-first computer use for AI agents on macOS.** Instead of screenshot → eyeball
-coordinates → click and hope, read the accessibility tree, get each element's
-semantics and exact geometry, act on it, then verify the action actually changed
-the UI.
+</div>
 
-A small, composable toolkit: accessibility-tree targeting, process- and
-window-scoped input, clipboard-safe pasting, action read-back verification,
-blank-frame detection, visual feedback, and optional Jev (TypeSafe System One)
-semantic guards.
+```text
+screenshot → guess coordinates → click → hope      ✗  slow, fragile, moves your mouse
+snapshot   → act on #ref       → verify the diff   ✓  what this kit does
+```
 
-**Jev is the semantic guard layer.** A small model — no reasoning tokens, no
-prose — returns calibrated judgments right before an irreversible action: *is
-this still the intended recipient? does the field hold the intended text? what,
-if anything, blocks the action?* The code, not the model, decides whether to
-proceed, and the model may only ever suggest the two recoveries that cannot send
-or submit anything. Probabilities in, decisions out. See
-[Jev semantic guards](#jev-semantic-guards-optional).
+- **One command per client.** Works with Claude Code, Claude Desktop, Codex,
+  Cursor, Gemini CLI, opencode, pi and DeepSeek Harness. It is a stdio MCP
+  server with no runtime dependencies beyond pyobjc and Pillow.
+- **Accessibility first.** Each element comes back with a stable `#ref`, its
+  role, its label and exact screen geometry. Re-observing returns only the
+  diff. Electron and Chromium apps get their full tree turned on
+  automatically.
+- **Background input.** Clicks, keys, scrolls, drags and Unicode typing are
+  posted to the target process, so the user can keep working. CJK, emoji and
+  accents arrive intact, and the clipboard is left alone.
+- **Verified, never optimistic.** Every result separates `action_sent` from
+  `verified`. Failures say whether it is safe to `retry`, whether to
+  `reobserve`, or whether to `never` retry.
+- **Safe by default.** There is a built-in deny list for password managers
+  and system auth. The kit refuses to type into a password field that holds
+  Secure Event Input, redacts secure fields, and blocks lock, log-out and
+  force-quit chords. It also offers a dry-run mode, a size-only audit log and app
+  allow/deny lists.
+- **Vision only when needed.** Set-of-mark screenshots draw numbered marks
+  linked to refs, and on-device Apple Vision OCR returns screen coordinates.
+  Both are fallbacks for canvas, game and custom-drawn UI.
 
-Works with any agent that can run a shell command, and ships first-class
-packages for [pi](#pi) and [DeepSeek Harness](#deepseek-harness-dsh).
+## Contents
 
-## Why
+- [Quick start](#quick-start)
+- [Tools](#tools)
+- [How an agent should use it](#how-an-agent-should-use-it)
+- [Safety and privacy](#safety-and-privacy)
+- [CLI reference](#cli-reference)
+- [Other agent integrations](#other-agent-integrations)
+- [Jev semantic guards (optional)](#jev-semantic-guards-optional)
+- [Related projects](#related-projects)
+- [Known limitations](#known-limitations)
+- [Repository layout](#repository-layout)
 
-These mechanisms were distilled from three mature implementations rather than
-invented from scratch:
+## Quick start
 
-| Source | Mechanism absorbed |
+### Requirements
+
+- macOS 12 or later, Python 3.10 or later.
+- Grant two permissions to the app that runs your agent (your terminal, Claude
+  Desktop, Cursor, and so on). `macos-cu doctor` tells you exactly which app
+  is missing which permission.
+  - **Accessibility**: needed for reading the tree, AX actions and posted input.
+  - **Screen Recording**: needed for screenshots and OCR (without it every
+    frame is black).
+
+### Claude Code
+
+Pick one of these:
+
+```bash
+# A. As a plugin: MCP server, skill and /macos-doctor command
+/plugin marketplace add Sur-Cai/macos-computer-use-kit
+/plugin install macos-computer-use@macos-computer-use-kit
+
+# B. As a plain MCP server
+claude mcp add --scope user macos-computer-use -- uvx macos-computer-use-kit mcp
+```
+
+The plugin finds `macos-cu` on your `PATH` and otherwise falls back to `uvx`
+or `pipx run`. Nothing has to be pre-installed except [uv](https://docs.astral.sh/uv/)
+or pipx.
+
+### Every other client, with one command
+
+```bash
+pipx install macos-computer-use-kit          # or: pip install / uv tool install
+macos-cu setup claude-code                   # also: claude-desktop, codex, cursor, gemini, opencode
+macos-cu setup skill                         # copy the agent skill to Claude, Codex and opencode
+macos-cu doctor                              # permissions, displays, OCR, policy
+```
+
+`setup` is idempotent and supports `--dry-run`. JSON configs are merged, so
+your other servers are preserved, and a `.bak` copy is written before the
+first change. `--read-only` registers only the observation tools.
+
+<details>
+<summary>Manual MCP config (any client)</summary>
+
+```json
+{
+  "mcpServers": {
+    "macos-computer-use": {
+      "command": "uvx",
+      "args": ["macos-computer-use-kit", "mcp"]
+    }
+  }
+}
+```
+
+Codex (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.macos-computer-use]
+command = "uvx"
+args = ["macos-computer-use-kit", "mcp"]
+```
+
+GUI apps do not inherit your shell's `PATH`. Use absolute paths
+(`which uvx`) if the client cannot find the command. `macos-cu setup print`
+prints the exact argv for your machine.
+
+</details>
+
+## Tools
+
+The MCP server exposes 18 tools. Observation tools carry `readOnlyHint`, so
+clients can auto-approve them. To trim the list, use `mcp --read-only`,
+`--tools a,b` or `--exclude-tools c`.
+
+| Tool | What it does |
 | --- | --- |
-| Codex CUA (`@oai/cua` / Sky service) | AX state + element index, `setValue`, batch actions, event delivery via `CGEventPostToPid` |
-| ZCode Computer Use | `*_to_window` window-scoped input, `target_changed` validation, clipboard-safe paste pipeline, `screenshot_blank` |
-| Grok Bot (`CUGrokBotService`) | snapshots with stable element ids + text budget + drill-down, action read-back, coordinate fallback on failure |
+| `macos_doctor` | Permissions, display layout (points, Retina scale, negative origins), OCR, policy |
+| `macos_snapshot` | Interactive elements as `#ref role size @screen[x,y] label`, trimmed to a character budget; `diff_against` returns only the changes |
+| `macos_find` / `macos_element_at` | Find by role or title with exact geometry / hit-test a screen point |
+| `macos_act` | Act on an element by ref: `press`, `set_value`, `focus`, or any action it advertises (`AXShowMenu`, `AXIncrement`, …), with read-back verification |
+| `macos_click` | Background click: left, right or middle, double or triple, with modifiers; `expect` refuses if the window moved |
+| `macos_type` / `macos_key` | Unicode typing (CJK- and emoji-safe) or clipboard-safe paste / keys and chords (`cmd+shift+t`, `mod+s`) |
+| `macos_scroll` / `macos_drag` / `macos_hover` | Pointer gestures posted to the target process |
+| `macos_app` / `macos_window` / `macos_menu` | Launch, activate, quit or open a URL or file / move, resize, minimize, raise or close windows / menu bar by path (`File > Export…`) |
+| `macos_screenshot` | App, window, region or display capture with blank-frame detection; `annotate=true` adds set-of-mark labels |
+| `macos_ocr` | Apple Vision OCR with screen rects; `text=` returns only the matches, ready to click |
+| `macos_wait` | Wait for an element to appear, disappear or hold a value, instead of sleeping |
+| `macos_jev_guard` | Optional semantic check before an irreversible step (see [Jev](#jev-semantic-guards-optional)) |
 
-## Install
+## How an agent should use it
 
-macOS 12+, Python 3.10+.
-
-```bash
-# 1) the CLI — every integration below drives this, and it works on its own
-pip install macos-computer-use-kit       # or: pipx install macos-computer-use-kit
-macos-cu doctor                          # permissions, displays, dependencies
-
-# 2) your agent integration (optional — pick one)
-pi  install npm:pi-macos-computer-use                       # pi
-dsh plugin --profile <name> add dsh-macos-computer-use      # DeepSeek Harness
+```text
+macos_doctor                                   once: permissions + display layout
+macos_snapshot app="Notes"                     → #a1b2c3d4 AXButton 28x28 @screen[812,64] New Note …
+macos_act ref="a1b2c3d4"                       → {"ok":true,"action_sent":true,"verified":true}
+macos_type app="Notes" text="周会纪要 ✅"        → Unicode events, clipboard untouched
+macos_snapshot app="Notes" diff_against=<path> → only what changed
 ```
 
-From a checkout — this is also the opencode integration (editable CLI, the
-`macos-computer-use` skill, a `macos-cu` launcher, and the optional Jev key):
+The rules behind the loop, which the bundled [skill](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/skill/SKILL.md) teaches:
 
-```bash
-git clone https://github.com/Sur-Cai/macos-computer-use-kit && cd macos-computer-use-kit
-./install.sh
-```
-
-Grant both permissions to the process that runs the agent (your terminal, or the
-agent app). `macos-cu doctor` reports what is missing and where to enable it:
-
-- **Accessibility** — AX reads, `AXPress`, `setValue`, posted events
-- **Screen Recording** — `shot` (without it every capture is black)
-
-## Quickstart
-
-```bash
-# semantic targeting: exact geometry, zero visual reasoning
-macos-cu ax find --app com.apple.finder --role AXButton --title Size
-macos-cu ax tree --app com.apple.finder --depth 16 --max 200
-
-# token-efficient snapshot with stable ids, trimmed to a budget
-macos-cu ax snapshot --app com.apple.finder --budget 1200 --file /tmp/ax.json
-macos-cu ax resolve  --file /tmp/ax.json --id 0.1.0.6.0.0.0.0.5.8
-
-# native AX action + read-back verification
-macos-cu ax press --app com.apple.finder --role AXButton --title Size
-# {"verified":true,"state_changed":true,...}
-
-# window-scoped input: the user's cursor never moves, target is validated
-macos-cu input windows --app "Google Chrome"
-macos-cu input click --window-id 12345 --x 171 --y 28 --show
-macos-cu input click --window-id 12345 --x 171 --y 28 --expect "37040:12345:642:244:824:640"
-# mismatch -> {"ok":false,"reason":"target_changed"} and exit code 5
-
-# clipboard-safe paste (saves and restores the user's clipboard)
-macos-cu paste --app com.google.Chrome --text "你好" --mode pid
-
-# screenshot with blank-frame detection
-macos-cu shot capture --app "Google Chrome" --out /tmp/shot.png
-macos-cu shot check --file /tmp/shot.png
-```
-
-## CLI
-
-One binary, JSON output, stable exit codes (`0` ok, `2` usage/permission,
-`3` not found, `4` capture failed, `5` target changed).
-
-| Group | Commands |
-| --- | --- |
-| `macos-cu ax` | `tree`, `find`, `click-info`, `snapshot`, `resolve`, `press`, `setvalue` |
-| `macos-cu input` | `windows`, `cursor`, `pid`, `click`, `key`, `scroll`, `move` |
-| `macos-cu paste` | clipboard-safe paste (`--mode pid\|hid`, `--keep`) |
-| `macos-cu shot` | `capture`, `check`, `windows` |
-| `macos-cu overlay` | `show`, `clear` |
-| `macos-cu jev` | `guard`, `select` (optional, JSON on stdin) |
-| `macos-cu doctor` | permissions, displays, dependencies, Jev setup |
+1. **Observe semantically.** Snapshot before you screenshot.
+2. **Act on the element, not the pixel.** Prefer menu paths and AX actions,
+   then a click at `center_screen`, then keyboard shortcuts.
+3. **Verify, don't sleep.** Use a snapshot diff or `macos_wait`.
+4. **Never retry blindly.** If `action_sent` is true, re-observe before
+   repeating anything that can't safely run twice. A second "Send" is a
+   second message.
+5. **`stale_ref` means re-observe.** It never means "pick the nearest element".
 
 ### Coordinate spaces
 
-| Space | Source | Used by |
+| Space | Meaning | Used by |
 | --- | --- | --- |
-| `screen[x, y]` | AX/CoreGraphics points, origin at the primary display's top-left | `input --x --y`, `overlay` |
-| window-relative | element point − window origin | `input click --window-id N --x --y` |
-| `shot[x, y]` | `center_screen × --shot-scale` | only for harnesses whose screenshots are scaled differently from screen points; there is deliberately no default |
+| `screen[x, y]` | Global points, origin at the primary display's top-left (same as AX and CGEvent) | `macos_click`, `input --x --y`, `overlay` |
+| window-relative | element point minus window origin | `macos_click window_id=…` |
+| image pixels | screenshot pixels = points × `backing_scale` (Retina: 2) | only when reading a PNG yourself |
 
-Secondary displays placed left of or above the primary produce **negative**
-coordinates. That is normal. `macos-cu doctor` prints the layout.
+Displays placed left of or above the primary have **negative** coordinates.
+That is normal, and `macos_doctor` prints the layout.
 
-## Agent integrations
+## Safety and privacy
 
-| Harness | What you get | Install |
+Everything runs locally. The kit makes no network calls, except the optional
+Jev guard, which only runs when you configure a key and call it.
+
+| Guard | Behaviour | Override |
 | --- | --- | --- |
-| any agent with a shell | the full CLI ([PyPI](https://pypi.org/project/macos-computer-use-kit/)) | `pip install macos-computer-use-kit` |
-| [opencode](https://opencode.ai) | skill `macos-computer-use` (auto-discovered) | `./install.sh` |
-| [pi](https://pi.dev) | skill + 9 native tools ([npm](https://www.npmjs.com/package/pi-macos-computer-use), [catalog](https://pi.dev/packages/pi-macos-computer-use)) | `pi install npm:pi-macos-computer-use` |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | plugin bundle, 6 tools ([npm](https://www.npmjs.com/package/dsh-macos-computer-use)) | `dsh plugin --profile <name> add dsh-macos-computer-use` |
+| Sensitive apps | Password managers, Keychain Access, Passwords, SecurityAgent, the login window and system auth prompts refuse input | `MACOS_CU_ALLOW_SENSITIVE=1` |
+| Secure input | Refuses to type into an app whose password field holds Secure Event Input; secure field values are redacted in every tree and result | — |
+| Locked screen | Refuses all input while the screen is locked | — |
+| System chords | Lock screen, log out and force quit are refused | `MACOS_CU_ALLOW_SYSTEM_CHORDS=1` |
+| App allow/deny | Only / never these bundle ids or names | `MACOS_CU_ALLOW_APPS`, `MACOS_CU_DENY_APPS` |
+| Dry run | Resolve targets and report, but post no events | `MACOS_CU_DRY_RUN=1` |
+| Audit log | One JSON line per mutating action; typed text is logged as its **length only** | `MACOS_CU_AUDIT=1` |
 
-Every integration is a thin bridge over the same CLI, so install the CLI first
-(`pip install macos-computer-use-kit`). The three published artifacts — the PyPI
-CLI, the pi package, and the dsh bundle — are versioned and released together;
-the badges at the top of this file show the current release.
+Local files stay private to your account:
 
-<a name="pi"></a>
-### pi package
+- Snapshot caches and the audit log live in `~/.cache/macos-computer-use/`,
+  or wherever `MACOS_CU_CACHE_DIR` points.
+- They are created with `0700`/`0600` permissions.
+- Snapshots are pruned to the newest 20 (`MACOS_CU_SNAPSHOT_KEEP`).
+- Screenshots and OCR captures are written only where you ask (`out=`).
+  Temporary OCR captures are deleted.
 
-[`pi-macos-computer-use`](https://www.npmjs.com/package/pi-macos-computer-use) on
-npm (`pi-package` keyword), sources in `packages/pi`. Registers
-`macos_cu_doctor`, `macos_ax_find`, `macos_ax_press`, `macos_input_windows`,
-`macos_input_click`, `macos_input_key`, `macos_paste`, `macos_shot`,
-`macos_jev_guard`. Every tool shells out with an argv array (`shell: false`), so
-model-supplied text can never reach a shell.
+## CLI reference
+
+Every command prints JSON (or compact text for `ax tree/find/snapshot`), so an
+agent can drive the kit from any shell. Exit codes are stable: `0` ok,
+`2` usage or permission, `3` not found / stale ref, `4` capture failed,
+`5` target changed, `6` refused by policy, `7` timeout.
+
+| Group | Commands |
+| --- | --- |
+| `macos-cu ax` | `snapshot` (`--interactive`, `--budget`, `--diff`), `find`, `tree`, `at`, `actions`, `press`, `setvalue`, `focus`, `action --name`, `wait`, `resolve` |
+| `macos-cu input` | `click` (`--button`, `--count`, `--flags`), `type`, `key` (chords), `scroll`, `drag`, `hover`, `move`, `windows`, `cursor`, `pid` |
+| `macos-cu paste` | Clipboard-safe paste that proves the app consumed it and restores the clipboard |
+| `macos-cu app` | `list`, `launch`, `activate`, `hide`, `quit`, `open --target URL/file` |
+| `macos-cu window` | `list`, `move`, `resize`, `minimize`, `restore`, `raise`, `focus`, `close`, `fullscreen` |
+| `macos-cu menu` | `list`, `select --path "File > Export…"` |
+| `macos-cu shot` | `capture`, `annotate`, `check`, `windows`, `displays` |
+| `macos-cu ocr` | Vision OCR of an app, window, region or file (`--text`, `--lang zh-Hans,en-US`) |
+| `macos-cu mcp` / `setup` / `doctor` | Serve MCP / register with a client / diagnose |
+| `macos-cu overlay` / `jev` | Visual feedback ring / optional semantic guards |
 
 ```bash
-pip install macos-computer-use-kit      # the CLI the tools call
-pi install npm:pi-macos-computer-use    # the integration
-pi -e ./packages/pi                     # or try a checkout for one run, without installing
+macos-cu ax snapshot --app Finder --interactive
+macos-cu ax press --app Finder --ref 9d2261d7
+macos-cu menu select --app Safari --path "File > New Private Window"
+macos-cu input type --app Notes --text "你好, world 👋"
+macos-cu input click --window-id 12345 --x 171 --y 28 --expect "<pid:wid:x:y:w:h>"
+macos-cu shot annotate --app "System Settings" --out /tmp/marks.png
+macos-cu ocr --app Preview --text "Total"
 ```
 
-App launchers do not inherit your interactive shell's `PATH`. If the CLI is
-installed but pi cannot find it, set `MACOS_CU_BIN=/abs/path/to/macos-cu` and
-restart pi (the dsh plugin honours the same variable).
+## Other agent integrations
 
-<a name="deepseek-harness-dsh"></a>
-### DeepSeek Harness plugin
+The MCP server covers most clients. There are native bridges for two
+harnesses that prefer their own tool format. Both are thin wrappers over the
+same CLI and call it with argv arrays (`shell: false`).
 
-[`dsh-macos-computer-use`](https://www.npmjs.com/package/dsh-macos-computer-use)
-on npm, sources in `packages/dsh` — a Cordis bundle
-(`dsh.bundle.patch` → `cordis.patch.yml`). Registers `macos_cu_doctor`,
-`macos_ax_find`, `macos_ax_press`, `macos_input_click`, `macos_shot`,
-`macos_jev_guard` (the same optional Jev guard the pi package exposes).
+| Harness | Package | Install |
+| --- | --- | --- |
+| [pi](https://pi.dev) | [`pi-macos-computer-use`](https://www.npmjs.com/package/pi-macos-computer-use): skill + 16 tools | `pi install npm:pi-macos-computer-use` |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | [`dsh-macos-computer-use`](https://www.npmjs.com/package/dsh-macos-computer-use): Cordis bundle, 11 tools | `dsh plugin --profile <name> add dsh-macos-computer-use` |
+| opencode | skill + MCP entry | `macos-cu setup opencode` (or `./install.sh` from a checkout) |
 
-```bash
-pip install macos-computer-use-kit                      # the CLI the tools call
-dsh plugin --profile demo add dsh-macos-computer-use    # the plugin
-dsh --profile demo --dump-config                        # verify the layer before booting
-```
-
-It deliberately does **not** claim the exclusive `ctx.computerUse` provider slot:
-it adds tools rather than owning desktop operations, so it cannot block the
-in-box Cua Driver provider. See `packages/dsh/README.md`.
-
-### opencode skill
-
-`./install.sh` installs `skill/SKILL.md` to
-`~/.config/opencode/skills/macos-computer-use/`, where opencode discovers it
-automatically, and puts a `macos-cu` launcher on your `PATH`.
-
-## The four capabilities that matter
-
-**1. Window-scoped input with target validation.** Events are posted straight to
-the target process (`CGEventPostToPid`), so the physical cursor never moves and
-the user can keep working. `--expect pid:wid:x:y:w:h` refuses to act when the
-window moved or lost focus since you looked at it.
-
-**2. Native AX actions with read-back verification.** `press`/`setvalue` compare
-the window's visible-text fingerprint and focused element before and after, and
-report `verified` separately from `action_sent`. When AX cannot act (custom-drawn
-UI), the result carries a `hint` telling you to fall back to a coordinate click
-or a clipboard paste — you find out from evidence, not from guessing.
-
-**3. Clipboard safety.** The user's clipboard is saved before and restored after.
-Takeover and non-consumption are reported explicitly, so pasting CJK text never
-silently destroys what the user had copied.
-
-**4. Never reason on a blank frame.** `shot` classifies captures as
-`ok` / `all_black` / `all_white` / `uniform` with a hint, so a missing permission
-or an occluded window is reported instead of hallucinated UI state.
-
-## Design principles
-
-1. **AX-first.** Semantic + exact geometry beats visual inference. Screenshots
-   verify; they do not target.
-2. **`action_sent` ≠ `verified`.** Keep "we emitted the event" and "the UI
-   changed" as separate facts.
-3. **The clipboard is a shared resource.** Save, detect interference, restore.
-4. **Targets must be explicit and checkable.** Window input carries a signature;
-   a mismatch is `target_changed`, not a misclick.
-5. **Small models judge, code decides.** Jev returns calibrated probabilities;
-   thresholds and side effects stay in code. Cost ladder: deterministic code
-   (µs) < Jev (~1 s) < visual reasoning (seconds to tens of seconds).
-6. **Make it visible.** Action points draw a ring, so the user is never watching
-   a black box.
+Install the CLI first (`pipx install macos-computer-use-kit`). If an app
+launched from the Dock can't find it, set `MACOS_CU_BIN=/abs/path/to/macos-cu`.
+All artifacts share one version number and are released together. See
+[`packages/pi`](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/packages/pi/README.md) and [`packages/dsh`](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/packages/dsh/README.md)
+for details.
 
 ## Jev semantic guards (optional)
 
-The only part that needs a key. Everything else works without it.
+This is the only feature that needs a key. Right before an irreversible step,
+a small model gives calibrated judgments: *is this still the intended
+recipient? does the field hold the intended text? what blocks the action?*
+**Code** decides whether to proceed, and the model may only suggest the two
+recoveries that cannot send anything.
 
 ```bash
 echo '{"task":"send the report to Alice",
        "expected":{"recipient":"Alice","message":"Q3 numbers"},
        "observed":{"chat_title":"Bob","input_text":"Q3 numbers"}}' | macos-cu jev guard
-# {"answers":{"right_target":0.02,"input_ok":0.98,"blocker":"wrong_target"},
-#  "decision":"switch_target"}
+# {"answers":{"right_target":0.02,"input_ok":0.98,"blocker":"wrong_target"},"decision":"switch_target"}
 ```
 
-One request fans out independent judgments and **code** applies the policy:
-proceed only when `blocker=none` and both probabilities clear the threshold; the
-model may only suggest the two safe recoveries (`switch_target`, `retype_input`);
-anything else asks the user. `macos-cu jev select` picks one candidate element
-with a `none` escape hatch and a confidence gate.
+The key is read from `TYPESAFE_API_KEY` or `~/.config/typesafe/api_key`
+(<https://console.typesafe.ai/keys>). Question design is covered in
+[`skill/reference/jev-best-practices.md`](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/skill/reference/jev-best-practices.md).
 
-Key: `TYPESAFE_API_KEY` or `~/.config/typesafe/api_key`
-(<https://console.typesafe.ai/keys>). Pin `TYPESAFE_MODEL` for automation;
-`jev-latest` is the friendly default. Question-design guidance lives in
-[`skill/reference/jev-best-practices.md`](skill/reference/jev-best-practices.md).
+## Related projects
+
+Computer use is a busy space. These are the projects worth knowing, with star
+counts as of September 2026. Pick the one that fits.
+
+| Project | Platform · language | Pick it when you want… |
+| --- | --- | --- |
+| [trycua/cua](https://github.com/trycua/cua) ★26k | macOS/Linux/Windows · Swift/Rust/Py | VM sandboxes (Lume), a driver + benchmarks, cross-platform agents |
+| [bytedance/UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) ★39k | cross-platform · TS | a vision-model-driven desktop agent app |
+| [microsoft/OmniParser](https://github.com/microsoft/OmniParser) ★25k | any · Py | screenshot → UI elements, for pure-vision agents |
+| [microsoft/UFO](https://github.com/microsoft/UFO) ★10k | Windows · Py | a Windows UI Automation agent OS |
+| [CursorTouch/Windows-MCP](https://github.com/CursorTouch/Windows-MCP) ★7k | Windows · Py | the Windows counterpart of this kit |
+| [openclaw/Peekaboo](https://github.com/openclaw/Peekaboo) ★5k | macOS · Swift | a native Swift CLI and menu-bar app with annotated screenshots |
+| [iFurySt/open-codex-computer-use](https://github.com/iFurySt/open-codex-computer-use) ★2k | macOS/Linux/Windows · Swift | an open clone of Codex's computer-use tool surface |
+| [ghostwright/ghost-os](https://github.com/ghostwright/ghost-os) ★2k | macOS · Swift | AX-first MCP with a learn-by-demonstration recorder |
+| [lahfir/agent-desktop](https://github.com/lahfir/agent-desktop) ★2k | macOS · Rust | an AX CLI with skeleton-then-drill traversal |
+
+**Where this kit fits.** It is pure Python on pyobjc, so there's no binary to
+notarize: `uvx` runs it anywhere. Its focus is agent-loop reliability. That
+means verified results with retry semantics, stale-ref detection, snapshot
+diffs, and a deterministic safety policy. The optional Jev guard adds a
+calibrated check before irreversible steps. The design follows the patterns
+mature computer-use agents converged on, reimplemented from scratch.
 
 ## Known limitations
 
-- macOS only (AX, CGEvent, ScreenCaptureKit are macOS APIs).
-- Custom-drawn UIs (some Electron apps, games, chat apps) expose shallow or
-  uncooperative AX trees. Fall back to screenshots **after** read-back fails,
-  not before.
-- Process-targeted key events are accepted by most apps but not all: browsers
-  usually accept background keystrokes; some chat apps require the app to be
-  frontmost for typing and pasting.
-- AX coordinate scale is display-dependent. `center_shot` is opt-in via
-  `--shot-scale` for exactly this reason.
-- The user may be using the machine at the same time. Concurrent automation is
-  risky; one extra verification before an irreversible action is cheap.
+- macOS only. AX, CGEvent, ScreenCaptureKit and Vision are macOS APIs.
+- Custom-drawn UIs (games, canvases, some chat apps) expose little or no
+  accessibility data. Use `annotate`, `ocr` and coordinate clicks there, and
+  verify visually.
+- Most apps accept background input, but a few only accept typing or pasting
+  while frontmost. Use `macos_app action=activate` first.
+- The user may be working at the same time. One extra verification before an
+  irreversible step is cheap.
 
 ## Repository layout
 
-```
-src/macos_computer_use/   the CLI implementation (pip-installable)
-tools/*.py                compatibility shims -> the same modules
-skill/                    agent skill (SKILL.md + Jev reference)
+```text
+src/macos_computer_use/   the CLI + MCP server (single source of truth)
+skill/                    the agent skill (canonical; synced by scripts/sync-skill.sh)
+plugins/claude-code/      Claude Code plugin (MCP launcher, skill, /macos-doctor)
+.claude-plugin/           marketplace manifest for `/plugin marketplace add`
 packages/pi/              pi package (skill + native tools)
-packages/dsh/             DeepSeek Harness plugin bundle
-install.sh                local installer (venv + CLI + skill + Jev key)
-tests/                    unit tests for the safety-relevant logic
+packages/dsh/             DeepSeek Harness bundle
+tests/                    unit tests: policy, chords, diffs, OCR geometry, MCP protocol
+tools/*.py                legacy script shims over the same modules
 ```
 
-Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
-conventions (JSON on stdout, stable exit codes, no machine-specific defaults).
-Release steps and catalog-listing criteria live in
-[PUBLISHING.md](PUBLISHING.md); notable changes are in
-[CHANGELOG.md](CHANGELOG.md).
-
-## 中文说明
-
-给 AI agent 用的 macOS 电脑控制工具箱：**AX 语义定位**（不靠截图目测坐标）、
-进程/窗口级输入（物理光标不动）、剪贴板安全粘贴、动作回读校验、空白帧检测、
-可视反馈，以及可选的 Jev 语义护栏。
-
-```bash
-# 1) 命令行本体（所有集成都调它，也可单独使用）
-pip install macos-computer-use-kit       # 或 pipx install macos-computer-use-kit
-macos-cu doctor                          # 检查辅助功能 / 屏幕录制权限、显示器、依赖、Jev
-
-# 2) 选一个 agent 集成
-pi  install npm:pi-macos-computer-use                       # pi
-dsh plugin --profile <名> add dsh-macos-computer-use        # DeepSeek Harness
-```
-
-opencode 的集成走 checkout：`git clone` 后执行 `./install.sh`，它会装 skill、放一个
-`macos-cu` 启动器，并可写入可选的 Jev key。完整流程与避坑见
-[`skill/SKILL.md`](skill/SKILL.md)，发布与收录流程见
-[`PUBLISHING.md`](PUBLISHING.md)。
+See [CONTRIBUTING.md](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/CONTRIBUTING.md) for conventions,
+[PUBLISHING.md](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/PUBLISHING.md) for release steps and
+[CHANGELOG.md](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/CHANGELOG.md) for the changelog.
 
 ## License
 
-MIT
+[MIT](https://github.com/Sur-Cai/macos-computer-use-kit/blob/main/LICENSE)

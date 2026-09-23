@@ -1,7 +1,7 @@
 {
   "name": "pi-macos-computer-use",
-  "version": "0.2.2",
-  "description": "AX-first computer use on macOS for pi: accessibility-tree targeting instead of screenshot coordinate guessing, window-scoped input that never moves the user's cursor, clipboard-safe pasting, action read-back verification, blank-frame detection, and optional Jev semantic guards.",
+  "version": "0.3.0",
+  "description": "AX-first macOS computer use for pi: accessibility snapshots with stable refs, background input that never moves your cursor, Unicode typing, menus, windows, apps, set-of-mark screenshots, on-device OCR, verified actions, a deterministic safety policy, and optional Jev semantic guards — 16 native tools over the macos-cu CLI.",
   "type": "module",
   "license": "MIT",
   "keywords": [
@@ -14,6 +14,8 @@
     "accessibility-tree",
     "automation",
     "gui-automation",
+    "desktop-automation",
+    "ocr",
     "agent-tools",
     "jev",
     "typesafe-ai",
