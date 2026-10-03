@@ -78,6 +78,20 @@ def element_ref(role: str, subrole: str, ident: str, title: str, desc: str, wind
     return hashlib.sha1(key.encode("utf-8", "replace")).hexdigest()[:8]
 
 
+def normalize_ref(ref: str | None) -> str | None:
+    """Accept a ref in either form it travels in: ``#abc12345`` or ``abc12345``.
+
+    Snapshots and finds *print* refs with a ``#`` (``#abc12345``) so they read as
+    references rather than path ids, but the stored value never carries it. Copying
+    a printed ref straight back into ``--ref`` is the documented workflow, so both
+    spellings have to resolve here instead of in every caller.
+    """
+    if ref is None:
+        return None
+    ref = ref.strip()
+    return ref[1:] if ref.startswith("#") else ref
+
+
 def _is_secure(role: str, subrole: str) -> bool:
     return policy.SECURE_ROLES.intersection({role, subrole}) != set()
 
@@ -113,6 +127,15 @@ def size_of(el):
 
 
 MAX_NODES = 4000
+# Row cap for tree/find when ``--max`` was not given. ``--max`` defaults to None so
+# `snapshot` can tell "not asked for" apart from "asked for the default".
+DEFAULT_MAX_ROWS = 120
+
+
+def row_cap(args) -> int:
+    """Rows printed by tree/find/click-info."""
+    explicit = getattr(args, "max", None)
+    return DEFAULT_MAX_ROWS if explicit is None else explicit
 
 
 def walk(el, depth, max_depth, out, role_filter=None, path="0", interactive=False, _ctx=None, menus=False):
@@ -209,6 +232,7 @@ def find_by_ref(root, ref, depth):
     counted. Snapshots are the recommended source, so their walk goes first;
     the other variants are only tried on a miss.
     """
+    ref = normalize_ref(ref)
     depth = max(depth, 24)
     for interactive, menus in ((True, False), (False, False), (False, True), (True, True)):
         hits = [e for e in walk_app(root, depth, interactive=interactive, menus=menus) if e["ref"] == ref]
@@ -304,9 +328,10 @@ def locate(root, args):
     """
     AS = _ax()  # noqa: N806
     if getattr(args, "ref", None):
-        hits = find_by_ref(root, args.ref, args.depth)
+        ref = normalize_ref(args.ref)
+        hits = find_by_ref(root, ref, args.depth)
         if not hits:
-            return None, {"stale_ref": args.ref}
+            return None, {"stale_ref": ref}
         entry = hits[0]
         return element_at_path(root, entry["id"]), entry
     if getattr(args, "id", None):
@@ -355,7 +380,9 @@ def run_action(root, args) -> dict[str, Any]:
                 "stale_ref",
                 retry="reobserve",
                 ref=entry["stale_ref"],
-                hint="the element this ref pointed at is gone or changed; take a fresh snapshot",
+                hint="the element this ref pointed at is gone or changed; take a fresh snapshot. A ref also "
+                     "hashes the enclosing window's title, so a window that renames itself (browsers follow "
+                     "the page title) invalidates every ref inside it",
             )
         return fail("element_not_found", hint="re-read the tree (ax find / ax snapshot) and check role/title")
 
@@ -551,15 +578,16 @@ def _print_err(obj: dict[str, Any], code: int) -> int:
 
 def run(args) -> int:
     if args.cmd == "resolve":
-        if not args.file or not (args.id or args.ref):
+        ref = normalize_ref(args.ref)
+        if not args.file or not (args.id or ref):
             return _print_err({"error": "resolve needs --file and --id or --ref"}, EXIT_USAGE)
         with open(args.file) as fh:
             data = json.load(fh)
         for e in data["elements"]:
-            if (args.id and e["id"] == args.id) or (args.ref and e.get("ref") == args.ref):
+            if (args.id and e["id"] == args.id) or (ref and e.get("ref") == ref):
                 print(json.dumps(e, ensure_ascii=False))
                 return 0
-        return _print_err({"error": "id_not_found", "id": args.id or args.ref}, EXIT_NOT_FOUND)
+        return _print_err({"error": "id_not_found", "id": args.id or ref}, EXIT_NOT_FOUND)
 
     if not darwin.permissions()["accessibility"]:
         return _print_err({"error": "accessibility_not_granted", "hint": darwin.permission_hint("accessibility")}, EXIT_USAGE)
@@ -614,7 +642,7 @@ def run(args) -> int:
         out = [out[args.index]] if 0 <= args.index < len(out) else []
     elif args.cmd in ("find", "tree", "click-info"):
         # Cap results for these modes; `snapshot` is bounded by --budget instead.
-        out = out[: args.max]
+        out = out[: row_cap(args)]
 
     app_name = (
         app.localizedName()
@@ -709,6 +737,11 @@ def _snapshot(app_name: str, result: list[dict[str, Any]], args) -> int:
         lines.append(line)
         used += len(line) + 1
     print(f"# snapshot: {cache} | elements={len(result)} shown={len(lines)} omitted={omitted} (budget={args.budget})")
+    if getattr(args, "max", None) is not None:
+        # `--max` is the tree/find row cap. Saying nothing is how a caller ends up
+        # with a 50 KB snapshot and a wrong mental model of what bounded it.
+        print(f"# note: `--max` does not apply to `snapshot` (it caps tree/find rows); "
+              f"this output is bounded by --budget={args.budget} characters")
     if omitted:
         print("# narrow with --interactive / --role / --title, or raise --budget")
     print("\n".join(lines))

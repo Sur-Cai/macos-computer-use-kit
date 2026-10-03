@@ -49,10 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
     ax.add_argument("--app", default=None, help="app name or bundle id (exact match preferred, then substring)")
     ax.add_argument("--pid", type=int, default=None, help="target a specific process instead of --app")
     ax.add_argument("--depth", type=int, default=16)
-    ax.add_argument("--max", type=int, default=120, help="cap rows printed (tree/find)")
+    ax.add_argument("--max", type=int, default=None,
+                    help="cap rows printed (tree/find; `snapshot` is bounded by --budget instead)")
     ax.add_argument("--role", default=None, help="AX role filter, e.g. AXButton")
     ax.add_argument("--title", default=None, help="substring match on title/description/value")
-    ax.add_argument("--ref", default=None, help="stable element ref from a snapshot (press/setvalue/action/wait)")
+    ax.add_argument("--ref", default=None,
+                    help="stable element ref from a snapshot (press/setvalue/action/wait); the printed '#abc12345' "
+                         "and the bare 'abc12345' are both accepted")
     ax.add_argument("--interactive", action="store_true", help="only actionable elements (buttons, fields, ...)")
     ax.add_argument("--index", type=int, default=None, help="element index for click-info")
     ax.add_argument(

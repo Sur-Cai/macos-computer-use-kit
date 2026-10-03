@@ -3,6 +3,28 @@
 All notable changes to this project. The CLI, the pi package, and the dsh bundle
 share a version number.
 
+## 0.3.2
+
+Bug fix: a ref printed by the toolkit could not be passed back to it.
+
+- **`--ref "#abc12345"` now resolves.** Snapshots and finds print refs with a `#`
+  prefix (`#c9879135`), but `find_by_ref` compared against the bare
+  `abc12345` and could never match — so the documented round trip (copy a ref
+  out of a snapshot, hand it to `ax press` / `ax actions` / `ax resolve` /
+  `wait`) failed with `stale_ref`, whose hint then blamed the element for
+  changing. `normalize_ref()` strips a leading `#` and surrounding whitespace
+  in `find_by_ref`, `locate` and the `resolve` path, so the CLI, the MCP server,
+  the pi package and the dsh bundle all accept both spellings.
+- **`ax --max` is optional and honest about what it bounds.** `--max` caps
+  `tree` / `find` / `click-info` rows and never applied to `snapshot` (bounded by
+  `--budget`), but passing it to `snapshot` was silently ignored — a caller could
+  ask for 25 rows and get a 50 KB tree with no explanation. `snapshot` now says so
+  in its footer.
+- **A more accurate `stale_ref` hint.** A ref also hashes the enclosing window's
+  title, so a window that renames itself (browsers follow the page title)
+  invalidates every ref inside it. The hint now names that cause too, instead of
+  blaming only element churn.
+
 ## 0.3.1
 
 Security fix in the safety policy's app matching.

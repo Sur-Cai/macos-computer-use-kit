@@ -343,3 +343,43 @@ class TestSnapshotCache:
         (tmp_path / "keep.txt").write_text("not a snapshot")
         ax.prune_snapshots(str(tmp_path), keep=2)
         assert sorted(p.name for p in tmp_path.iterdir()) == ["keep.txt", "s3.json", "s4.json"]
+
+
+class TestRefNormalization:
+    """Refs are printed as `#abc12345`; feeding that exact string back must work.
+
+    0.3.1 stored the bare `abc12345` and compared it against the printed form, so
+    the documented round trip (copy a ref out of a snapshot, pass it to --ref)
+    failed with `stale_ref` — whose hint then blamed the element.
+    """
+
+    def test_normalize_accepts_printed_and_bare_forms(self):
+        from macos_computer_use.ax import normalize_ref
+
+        assert normalize_ref("#abc12345") == "abc12345"
+        assert normalize_ref("abc12345") == "abc12345"
+        assert normalize_ref("  #abc12345\n") == "abc12345"
+        assert normalize_ref("#abc12345~2") == "abc12345~2"
+        assert normalize_ref(None) is None
+        assert normalize_ref("") == ""
+
+    def test_find_by_ref_accepts_the_printed_hash_prefix(self, monkeypatch):
+        from macos_computer_use import ax
+
+        monkeypatch.setattr(ax, "walk_app", lambda *a, **k: [{"ref": "c9879135"}])
+        assert ax.find_by_ref(None, "#c9879135", 4) == [{"ref": "c9879135"}]
+        assert ax.find_by_ref(None, "c9879135", 4) == [{"ref": "c9879135"}]
+        assert ax.find_by_ref(None, "#deadbeef", 4) == []
+
+    def test_row_cap_distinguishes_absent_from_explicit_max(self):
+        from macos_computer_use.ax import DEFAULT_MAX_ROWS, row_cap
+
+        class Args:
+            pass
+
+        args = Args()
+        assert row_cap(args) == DEFAULT_MAX_ROWS
+        args.max = None
+        assert row_cap(args) == DEFAULT_MAX_ROWS
+        args.max = 7
+        assert row_cap(args) == 7
