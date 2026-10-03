@@ -149,7 +149,7 @@ than writing it twice:
 ```bash
 python3 - <<'PY'
 import re, pathlib
-v = "0.3.1"  # <- version
+v = "0.3.2"  # <- version
 text = pathlib.Path("CHANGELOG.md").read_text()
 m = re.search(rf"^## {re.escape(v)}\n(.*?)(?=^## )", text, re.S | re.M)
 pathlib.Path("/tmp/notes.md").write_text(f"## {v}\n{m.group(1)}".rstrip() + "\n")
@@ -166,10 +166,10 @@ commit, so the tag and the published artifacts are the same source.
 
 | Artifact | Published | Notes |
 | --- | --- | --- |
-| `macos-computer-use-kit` | PyPI `0.3.1` | `pip install macos-computer-use-kit` |
-| `pi-macos-computer-use` | npm `0.3.1` | listed on pi.dev/packages |
-| `dsh-macos-computer-use` | npm `0.3.1` | 11 tools; awesome-dsh-plugin PR #5753 |
-| Claude Code plugin | `0.3.1` | served from this repository |
+| `macos-computer-use-kit` | PyPI `0.3.2` | `pip install macos-computer-use-kit` |
+| `pi-macos-computer-use` | npm `0.3.2` | listed on pi.dev/packages |
+| `dsh-macos-computer-use` | npm `0.3.2` | 11 tools; awesome-dsh-plugin PR #5753 |
+| Claude Code plugin | `0.3.2` | served from this repository |
 
 Discoverability keywords are part of the release, not an edit: npm and PyPI
 metadata is immutable per version, so adding `jev` / `typesafe-ai` /
@@ -177,3 +177,11 @@ metadata is immutable per version, so adding `jev` / `typesafe-ai` /
 keywords — batch them with something else.
 
 Known follow-ups: the awesome-dsh-plugin catalog PR is submitted ([#5753](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/5753)); the gate's age check self-clears when the repo crosses 1 day (2026-09-23T10:22Z) — no resubmit needed per their own message.
+
+A follow-up carried out of 0.3.2: a ref hashes the enclosing window's title, so
+a window that renames itself — browsers follow the active page's title —
+invalidates every ref inside it. That was observed once against Chrome while
+testing the fix (a ref printed seconds earlier failed, then the identical value
+resolved again). It is documented in the `stale_ref` hint rather than fixed,
+because keying the ref on a stable window identity instead of its title changes
+every ref and therefore needs its own version.
