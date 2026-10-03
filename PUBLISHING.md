@@ -184,4 +184,7 @@ invalidates every ref inside it. That was observed once against Chrome while
 testing the fix (a ref printed seconds earlier failed, then the identical value
 resolved again). It is documented in the `stale_ref` hint rather than fixed,
 because keying the ref on a stable window identity instead of its title changes
-every ref and therefore needs its own version.
+every ref and therefore needs its own version. Batch with it: the pi extension's
+tool schemas still describe a ref as "stable element ref from a snapshot (after
+'#')" — correct, but no longer necessary now that both spellings resolve, and npm
+metadata is immutable per version, so it rides along with the next release.
